@@ -1,0 +1,16 @@
+{
+  "name": "fut-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for fut-web integration",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "register": "node register.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "mongoose": "^9.8.0"
+  }
+}

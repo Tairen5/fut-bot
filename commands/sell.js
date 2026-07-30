@@ -13,6 +13,7 @@ import path from 'path';
 import UserModel from '../schemas/userSchema.js';
 import UserPlayerModel from '../schemas/userPlayerSchema.js';
 import SquadModel from '../schemas/squadSchema.js';
+import { updateMissionProgress } from '../utils/missions.js';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const CARDS_LOCAL_PATH = 'c:/Users/Javi/Desktop/fut-web/frontend/public/player-cards';
@@ -204,6 +205,9 @@ export async function execute(interaction) {
           { $inc: { currency: sellPrice } },
           { returnDocument: 'after' }
         );
+
+        // Update SELL_PLAYERS mission progress
+        await updateMissionProgress(webUser._id, 'SELL_PLAYERS');
 
         const { embedUrl, files: successFiles } = getPlayerImageAttachment(p.image);
         

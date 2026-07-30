@@ -9,6 +9,7 @@ import {
 import UserModel from '../schemas/userSchema.js';
 import PackModel from '../schemas/packSchema.js';
 import UserPackModel from '../schemas/userPackSchema.js';
+import { updateMissionProgress } from '../utils/missions.js';
 
 const COLLECTOR_TIMEOUT = 60_000;
 
@@ -108,6 +109,9 @@ export async function execute(interaction) {
             quantity: 1
           });
         }
+
+        // Update BUY_PACKS mission progress
+        await updateMissionProgress(freshUser._id, 'BUY_PACKS');
 
         // Update Store embed with new balance
         storeEmbed.setDescription(`✅ You bought a **${selectedPack.name}**!\nIt has been sent to your \`/inventory\`.\nYour balance: **${freshUser.currency.toLocaleString()} coins**\n\n`);

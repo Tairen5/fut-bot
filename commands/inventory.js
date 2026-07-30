@@ -16,6 +16,7 @@ import UserModel from '../schemas/userSchema.js';
 import PackModel from '../schemas/packSchema.js';
 import UserPlayerModel from '../schemas/userPlayerSchema.js';
 import UserPackModel from '../schemas/userPackSchema.js';
+import { updateMissionProgress } from '../utils/missions.js';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const CARDS_LOCAL_PATH = 'c:/Users/Javi/Desktop/fut-web/frontend/public/player-cards';
@@ -177,6 +178,9 @@ export async function execute(interaction) {
         // Deduct from inventory
         userPack.quantity -= 1;
         await userPack.save();
+
+        // Update OPEN_PACKS mission progress
+        await updateMissionProgress(webUser._id, 'OPEN_PACKS');
 
         // Processing overlay message
         await i.update({

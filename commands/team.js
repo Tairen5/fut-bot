@@ -86,23 +86,34 @@ export async function execute(interaction) {
     const textMode = interaction.options.getBoolean('text') ?? false;
 
     if (textMode) {
-      // Sort by positionIndex so it reads GK -> DEF -> MID -> ATK
-      const sorted = [...squad.startingEleven]
-        .filter(s => s.user_player_id?.player_id)
-        .sort((a, b) => a.positionIndex - b.positionIndex);
+      // Build a map of positionIndex -> slot for quick lookup
+      const slotMap = new Map();
+      for (const slot of squad.startingEleven) {
+        slotMap.set(slot.positionIndex, slot);
+      }
 
-      const lines = sorted.map((slot, idx) => {
-        const p = slot.user_player_id.player_id;
-        const posLabel = POSITION_LABELS[slot.positionIndex] ?? '?';
-        return `${idx + 1}. **${posLabel}** - ${p.name} OVR ${p.overall}`;
-      });
+      const lines = [];
+      // Iterate all 11 positions in order (GK -> DEF -> MID -> ATK)
+      for (let idx = 0; idx <= 10; idx++) {
+        const posLabel = POSITION_LABELS[idx] ?? '?';
+        const slot = slotMap.get(idx);
+        const player = slot?.user_player_id?.player_id;
+
+        if (player) {
+          lines.push(`\`${idx + 1}.\` **${posLabel}** - ${player.name} OVR ${player.overall}`);
+        } else {
+          lines.push(`\`${idx + 1}.\` **${posLabel}** - *Empty*`);
+        }
+      }
+
+      const filledCount = [...slotMap.values()].filter(s => s?.user_player_id?.player_id).length;
 
       const { EmbedBuilder } = await import('discord.js');
       const textEmbed = new EmbedBuilder()
         .setColor(0x2b2d31)
         .setTitle(`${webUser.discordUsername}'s Team`)
         .setDescription(lines.join('\n'))
-        .setFooter({ text: `${sorted.length}/11 players` });
+        .setFooter({ text: `${filledCount}/11 players` });
 
       return interaction.editReply({ embeds: [textEmbed] });
     }

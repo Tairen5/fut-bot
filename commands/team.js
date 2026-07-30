@@ -91,16 +91,16 @@ export async function execute(interaction) {
         .filter(s => s.user_player_id?.player_id)
         .sort((a, b) => a.positionIndex - b.positionIndex);
 
-      const lines = sorted.map(slot => {
+      const lines = sorted.map((slot, idx) => {
         const p = slot.user_player_id.player_id;
         const posLabel = POSITION_LABELS[slot.positionIndex] ?? '?';
-        return `\`${posLabel.padEnd(2)}\` **${p.name}** — ⭐ ${p.overall} • ${p.position}`;
+        return `${idx + 1}. **${posLabel}** - ${p.name} OVR ${p.overall}`;
       });
 
       const { EmbedBuilder } = await import('discord.js');
       const textEmbed = new EmbedBuilder()
-        .setColor(0x22c55e)
-        .setTitle(`⚽ ${webUser.discordUsername}'s Team`)
+        .setColor(0x2b2d31)
+        .setTitle(`${webUser.discordUsername}'s Team`)
         .setDescription(lines.join('\n'))
         .setFooter({ text: `${sorted.length}/11 players` });
 

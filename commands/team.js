@@ -42,9 +42,20 @@ function getPlayerImageSource(imageName) {
 
 // ─── Command definition ────────────────────────────────────────────────────────
 
+// Position labels for text mode
+const POSITION_LABELS = {
+  0: 'GK', 1: 'LB', 2: 'CB', 3: 'CB', 4: 'RB',
+  5: 'CM', 6: 'CM', 7: 'CM', 8: 'LW', 9: 'ST', 10: 'RW'
+};
+
 export const data = new SlashCommandBuilder()
   .setName('team')
-  .setDescription('Shows your active team layout on the pitch');
+  .setDescription('Shows your active team layout on the pitch')
+  .addBooleanOption(option =>
+    option.setName('text')
+      .setDescription('Show team as text instead of image')
+      .setRequired(false)
+  );
 
 // ─── Execute ───────────────────────────────────────────────────────────────────
 
@@ -69,6 +80,31 @@ export async function execute(interaction) {
 
     if (!squad || !squad.startingEleven || squad.startingEleven.length === 0) {
       return interaction.editReply('Your squad is empty. Use `/add` to put players in your team.');
+    }
+
+    // 3. Check if text mode requested
+    const textMode = interaction.options.getBoolean('text') ?? false;
+
+    if (textMode) {
+      // Sort by positionIndex so it reads GK -> DEF -> MID -> ATK
+      const sorted = [...squad.startingEleven]
+        .filter(s => s.user_player_id?.player_id)
+        .sort((a, b) => a.positionIndex - b.positionIndex);
+
+      const lines = sorted.map(slot => {
+        const p = slot.user_player_id.player_id;
+        const posLabel = POSITION_LABELS[slot.positionIndex] ?? '?';
+        return `\`${posLabel.padEnd(2)}\` **${p.name}** — ⭐ ${p.overall} • ${p.position}`;
+      });
+
+      const { EmbedBuilder } = await import('discord.js');
+      const textEmbed = new EmbedBuilder()
+        .setColor(0x22c55e)
+        .setTitle(`⚽ ${webUser.discordUsername}'s Team`)
+        .setDescription(lines.join('\n'))
+        .setFooter({ text: `${sorted.length}/11 players` });
+
+      return interaction.editReply({ embeds: [textEmbed] });
     }
 
     // 3. Setup canvas and background

@@ -8,6 +8,7 @@ import {
   MessageFlags,
   AttachmentBuilder
 } from 'discord.js';
+import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs';
 import path from 'path';
 
@@ -43,6 +44,19 @@ function getPlayerImageAttachment(imageName) {
 
   const baseUrl = process.env.ASSETS_BASE_URL || 'http://localhost:5173';
   return { url: `${baseUrl}/player-cards/${imageName}`, attachment: null };
+}
+
+function getPlayerImagePath(imageName) {
+  if (!imageName) return 'https://i.imgur.com/8m4Y4zX.png';
+  if (imageName.startsWith('http')) return imageName;
+
+  const localPath = path.join(CARDS_LOCAL_PATH, imageName);
+  if (fs.existsSync(localPath)) {
+    return localPath; 
+  }
+
+  const baseUrl = process.env.ASSETS_BASE_URL || 'http://localhost:5173';
+  return `${baseUrl}/player-cards/${imageName}`;
 }
 
 // ─── Command definition ────────────────────────────────────────────────────────
@@ -173,6 +187,107 @@ export async function execute(interaction) {
           pulledPlayers.push(chosen.player_id);
         }
 
+        if (selectedPack.type === 'draft') {
+          // --- DRAFT LOGIC ---
+          const canvasWidth = Math.max(850, pulledPlayers.length * 270);
+          const canvasHeight = 400;
+          const canvas = createCanvas(canvasWidth, canvasHeight);
+          const ctx = canvas.getContext('2d');
+          
+          // Transparent or dark background
+          ctx.fillStyle = '#1e1e1e';
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+          const cardWidth = 250;
+          const cardHeight = 350;
+          const startX = (canvasWidth - (pulledPlayers.length * cardWidth + (pulledPlayers.length - 1) * 20)) / 2;
+
+          for (let i = 0; i < pulledPlayers.length; i++) {
+            const player = pulledPlayers[i];
+            const imgPath = getPlayerImagePath(player.image);
+            try {
+              const img = await loadImage(imgPath);
+              const x = startX + i * (cardWidth + 20);
+              const y = 10;
+              ctx.drawImage(img, x, y, cardWidth, cardHeight);
+              
+              // Draw "1", "2", "3" labels below
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 30px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText(`${i + 1}`, x + cardWidth / 2, y + cardHeight + 30);
+            } catch (err) {
+              console.error('Error loading draft image:', err);
+            }
+          }
+
+          const buffer = canvas.toBuffer('image/png');
+          const attachment = new AttachmentBuilder(buffer, { name: 'draft.png' });
+
+          const draftEmbed = new EmbedBuilder()
+            .setColor(0xffd700)
+            .setTitle(`Player Pick!`)
+            .setDescription(`You have opened a **${selectedPack.name}**.\nChoose **1** player to keep by clicking the buttons below.`)
+            .setImage('attachment://draft.png');
+
+          const draftRow = new ActionRowBuilder();
+          for (let i = 0; i < pulledPlayers.length; i++) {
+            draftRow.addComponents(
+              new ButtonBuilder()
+                .setCustomId(`draft_pick_${i}`)
+                .setLabel(`Keep Player ${i + 1}`)
+                .setStyle(ButtonStyle.Primary)
+            );
+          }
+
+          const draftMsg = await i.editReply({
+            embeds: [draftEmbed],
+            components: [draftRow],
+            files: [attachment]
+          });
+
+          // Collector for the draft selection
+          const draftCollector = draftMsg.createMessageComponentCollector({
+            filter: btnInt => btnInt.user.id === discordId && btnInt.customId.startsWith('draft_pick_'),
+            time: 60000
+          });
+
+          draftCollector.on('collect', async btnInt => {
+            const selectedIdx = parseInt(btnInt.customId.split('_').pop());
+            const chosenPlayer = pulledPlayers[selectedIdx];
+
+            // Save only the chosen player to DB
+            await UserPlayerModel.create({
+              user_id: freshUser._id,
+              player_id: chosenPlayer._id,
+              isTradeable: true
+            });
+
+            // Update UI
+            draftEmbed.setDescription(`✅ You chose **${chosenPlayer.name}** (${chosenPlayer.overall})! They have been added to your club.`);
+            draftEmbed.setColor(0x22c55e);
+            
+            // Disable buttons
+            draftRow.components.forEach(c => c.setDisabled(true));
+
+            await btnInt.update({ embeds: [draftEmbed], components: [draftRow] });
+            draftCollector.stop('selected');
+          });
+
+          draftCollector.on('end', (_, reason) => {
+            if (reason !== 'selected') {
+              draftEmbed.setDescription('❌ You took too long to choose. The pack expired and no players were added (Coins lost).');
+              draftEmbed.setColor(0xff0000);
+              draftRow.components.forEach(c => c.setDisabled(true));
+              interaction.editReply({ embeds: [draftEmbed], components: [draftRow] }).catch(() => {});
+            }
+          });
+
+          collector.stop('opened');
+          return;
+        }
+
+        // --- STANDARD PACK LOGIC ---
         // 7. Save pulled players to DB
         const userPlayersData = pulledPlayers.map(player => ({
           user_id: freshUser._id,

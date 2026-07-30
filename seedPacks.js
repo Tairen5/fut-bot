@@ -87,7 +87,21 @@ async function seedPacks() {
       ] : [{ player_id: players[0]._id, weight: 100 }]
     });
 
-    await PackModel.insertMany([bronzePack, silverPack, goldPack, premiumPack]);
+    // Create Draft Pick Pack
+    const draftPack = new PackModel({
+      name: 'Gold Player Pick (1 of 3)',
+      price: 25000,
+      numCards: 3, // It generates 3 cards to choose from
+      type: 'draft',
+      availableInStore: true,
+      image: 'gold', // Or a custom draft icon
+      possibleCards: goldPlayers.length || premiumPlayers.length ? [
+        ...goldPlayers.map(p => ({ player_id: p._id, weight: 100 })),
+        ...premiumPlayers.map(p => ({ player_id: p._id, weight: 20 }))
+      ] : [{ player_id: players[0]._id, weight: 100 }]
+    });
+
+    await PackModel.insertMany([bronzePack, silverPack, goldPack, premiumPack, draftPack]);
     console.log('Successfully seeded 4 standard packs!');
 
     process.exit(0);

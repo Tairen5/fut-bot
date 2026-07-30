@@ -31,12 +31,19 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
+    // Icons per mission type
+    const typeIcons = {
+      OPEN_PACKS: '📦',
+      SELL_PLAYERS: '💰',
+      BUY_PACKS: '🛒'
+    };
+
     const embed = new EmbedBuilder()
-      .setColor(0x0e50e6) // Blue Lock blue
-      .setTitle('MISIONES');
+      .setColor(0x0e50e6);
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
+    const lines = ['**⚽ MISIONES**\n──────────────────────────────'];
 
     for (const obj of activeObjectives) {
       const uo = progressMap.get(obj._id.toString());
@@ -44,21 +51,21 @@ export async function execute(interaction) {
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
+      const icon = typeIcons[obj.type] ?? '◈';
       let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      // Simular barra de progreso con bloques unicode
-      const totalBlocks = 6;
-      const progressRatio = Math.min(progress / obj.targetValue, 1);
-      const filledBlocks = Math.round(progressRatio * totalBlocks);
-      const emptyBlocks = totalBlocks - filledBlocks;
-      const bar = '▰'.repeat(filledBlocks) + '▱'.repeat(emptyBlocks);
-      
-      const checkMark = isClaimed ? ' ✅' : (isCompleted ? ' 🎁 (¡Reclama abajo!)' : '');
+      // Progress bar
+      const totalBlocks = 8;
+      const filledBlocks = Math.round(Math.min(progress / obj.targetValue, 1) * totalBlocks);
+      const bar = '▰'.repeat(filledBlocks) + '▱'.repeat(totalBlocks - filledBlocks);
 
-      embed.addFields({
-        name: `◈ **${obj.name.toUpperCase()}**`,
-        value: `${obj.description}\n${bar} \`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}\`${checkMark}\n*Recompensa: ${rewardText}*\n`
-      });
+      const statusSuffix = isClaimed ? '  ✅' : (isCompleted ? '  🎁' : '');
+      const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;
+
+      lines.push(`${icon} **${obj.name.toUpperCase()}**${statusSuffix}`);
+      lines.push(obj.description);
+      lines.push(`${bar}  \`${progressText}\`  ·  ${rewardText}`);
+      lines.push('──────────────────────────────');
 
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
@@ -70,6 +77,8 @@ export async function execute(interaction) {
         );
       }
     }
+
+    embed.setDescription(lines.join('\n'));
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

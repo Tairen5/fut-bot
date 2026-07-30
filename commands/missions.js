@@ -79,7 +79,7 @@ export async function execute(interaction) {
 
       fields.push({
         name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `${obj.description}\n${bar}  **${progressText}**\n${rewardText}\n${'\u25ac'.repeat(12)}`,
+        value: `${obj.description}\n----------------------\n${bar}  **${progressText}**\n${rewardText}\n______________________`,
         inline: true
       });
 

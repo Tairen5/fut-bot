@@ -35,10 +35,10 @@ async function seedPacks() {
       price: 5000,
       numCards: 3,
       image: 'bronze',
-      possibleCards: [
-        ...bronzePlayers.map(p => ({ player_id: p._id, weight: 100 })), // Very common
-        ...silverPlayers.map(p => ({ player_id: p._id, weight: 10 }))   // Rare in bronze pack
-      ]
+      possibleCards: bronzePlayers.length || silverPlayers.length ? [
+        ...bronzePlayers.map(p => ({ player_id: p._id, weight: 100 })),
+        ...silverPlayers.map(p => ({ player_id: p._id, weight: 10 }))
+      ] : [{ player_id: players[0]._id, weight: 100 }]
     });
 
     // Create Silver Pack
@@ -47,11 +47,11 @@ async function seedPacks() {
       price: 15000,
       numCards: 3,
       image: 'silver',
-      possibleCards: [
+      possibleCards: bronzePlayers.length || silverPlayers.length || goldPlayers.length ? [
         ...bronzePlayers.map(p => ({ player_id: p._id, weight: 20 })),
         ...silverPlayers.map(p => ({ player_id: p._id, weight: 100 })),
         ...goldPlayers.map(p => ({ player_id: p._id, weight: 5 }))
-      ]
+      ] : [{ player_id: players[0]._id, weight: 100 }]
     });
 
     // Create Gold Pack
@@ -60,11 +60,11 @@ async function seedPacks() {
       price: 50000,
       numCards: 3,
       image: 'gold',
-      possibleCards: [
+      possibleCards: silverPlayers.length || goldPlayers.length || premiumPlayers.length ? [
         ...silverPlayers.map(p => ({ player_id: p._id, weight: 20 })),
         ...goldPlayers.map(p => ({ player_id: p._id, weight: 100 })),
         ...premiumPlayers.map(p => ({ player_id: p._id, weight: 5 }))
-      ]
+      ] : [{ player_id: players[0]._id, weight: 100 }]
     });
 
     // Create Premium Pack
@@ -73,10 +73,10 @@ async function seedPacks() {
       price: 150000,
       numCards: 5,
       image: 'premium',
-      possibleCards: [
+      possibleCards: goldPlayers.length || premiumPlayers.length ? [
         ...goldPlayers.map(p => ({ player_id: p._id, weight: 50 })),
         ...premiumPlayers.map(p => ({ player_id: p._id, weight: 100 }))
-      ]
+      ] : [{ player_id: players[0]._id, weight: 100 }]
     });
 
     await PackModel.insertMany([bronzePack, silverPack, goldPack, premiumPack]);

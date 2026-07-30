@@ -128,6 +128,13 @@ export async function execute(interaction) {
         // Re-fetch user to get latest balance
         const freshUser = await UserModel.findOne({ discordId });
 
+        if (!selectedPack.possibleCards || selectedPack.possibleCards.length === 0) {
+          return i.reply({
+            content: `This pack is currently empty in the database. Please try another one.`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
         if (freshUser.currency < selectedPack.price) {
           return i.reply({
             content: `You don't have enough coins! You need **${(selectedPack.price - freshUser.currency).toLocaleString()}** more coins for the ${selectedPack.name}.`,

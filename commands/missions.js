@@ -46,12 +46,12 @@ export async function execute(interaction) {
 
       let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      // Simular barra de progreso con emojis
+      // Simular barra de progreso con bloques unicode
       const totalBlocks = 6;
       const progressRatio = Math.min(progress / obj.targetValue, 1);
       const filledBlocks = Math.round(progressRatio * totalBlocks);
       const emptyBlocks = totalBlocks - filledBlocks;
-      const bar = '🟦'.repeat(filledBlocks) + '⬛'.repeat(emptyBlocks);
+      const bar = '▰'.repeat(filledBlocks) + '▱'.repeat(emptyBlocks);
       
       const checkMark = isClaimed ? ' ✅' : (isCompleted ? ' 🎁 (¡Reclama abajo!)' : '');
 

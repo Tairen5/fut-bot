@@ -111,7 +111,7 @@ export async function execute(interaction) {
     const message = await interaction.reply({
       embeds: [storeEmbed],
       components: [row],
-      fetchReply: true
+      withResponse: true
     });
 
     // 5. Collector

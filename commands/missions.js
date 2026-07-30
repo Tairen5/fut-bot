@@ -33,9 +33,9 @@ export async function execute(interaction) {
 
     // Icons per mission type
     const typeIcons = {
-      OPEN_PACKS: '📦',
-      SELL_PLAYERS: '💰',
-      BUY_PACKS: '🛒'
+      OPEN_PACKS: '◈',
+      SELL_PLAYERS: '◆',
+      BUY_PACKS: '◇'
     };
 
     const embed = new EmbedBuilder()

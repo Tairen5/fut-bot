@@ -43,11 +43,12 @@ export async function execute(interaction) {
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x0e50e6);
+      .setColor(0x0e50e6)
+      .setTitle('⚽ Misiones');
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
-    const lines = ['**⚽ MISIONES**\n──────────────────────────────'];
+    const fields = [];
 
     for (const obj of activeObjectives) {
       const uo = progressMap.get(obj._id.toString());
@@ -56,18 +57,18 @@ export async function execute(interaction) {
       const isClaimed = uo ? uo.isClaimed : false;
 
       const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
-      let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
+      const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      // Progress bar: 1 block per unit of target
+      // Progress bar: 1 block per unit
       const bar = '▰'.repeat(progress) + '▱'.repeat(Math.max(0, obj.targetValue - progress));
-
-      const statusSuffix = isClaimed ? '  ✅' : (isCompleted ? '  🎁' : '');
       const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;
+      const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
 
-      lines.push(`${icon} **${obj.name.toUpperCase()}**${statusSuffix}`);
-      lines.push(obj.description);
-      lines.push(`${bar}  \`${progressText}\`  ·  ${rewardText}`);
-      lines.push('──────────────────────────────');
+      fields.push({
+        name: `${icon} ${obj.name.toUpperCase()}${statusSuffix}`,
+        value: `*${obj.description}*\n${bar} \`${progressText}\`\n${rewardText}`,
+        inline: true
+      });
 
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
@@ -80,7 +81,15 @@ export async function execute(interaction) {
       }
     }
 
-    embed.setDescription(lines.join('\n'));
+    // Insert blank spacers after every 2nd field to force 2-column layout
+    const spacedFields = [];
+    for (let i = 0; i < fields.length; i++) {
+      spacedFields.push(fields[i]);
+      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
+        spacedFields.push({ name: '\u200b', value: '\u200b', inline: false });
+      }
+    }
+    embed.addFields(spacedFields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

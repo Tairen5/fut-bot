@@ -67,7 +67,7 @@ export async function execute(interaction) {
     }
 
     // 2. Fetch all store packs from DB
-    const storePacks = await PackModel.find({ type: 'store' }).populate('possibleCards.player_id').lean();
+    const storePacks = await PackModel.find({ availableInStore: true }).populate('possibleCards.player_id').lean();
     if (storePacks.length === 0) {
       return interaction.reply({
         embeds: [

@@ -34,6 +34,8 @@ async function seedPacks() {
       name: 'Bronze Pack',
       price: 5000,
       numCards: 3,
+      type: 'standard',
+      availableInStore: true,
       image: 'bronze',
       possibleCards: bronzePlayers.length || silverPlayers.length ? [
         ...bronzePlayers.map(p => ({ player_id: p._id, weight: 100 })),
@@ -46,6 +48,8 @@ async function seedPacks() {
       name: 'Silver Pack',
       price: 15000,
       numCards: 3,
+      type: 'standard',
+      availableInStore: true,
       image: 'silver',
       possibleCards: bronzePlayers.length || silverPlayers.length || goldPlayers.length ? [
         ...bronzePlayers.map(p => ({ player_id: p._id, weight: 20 })),
@@ -59,6 +63,8 @@ async function seedPacks() {
       name: 'Gold Pack',
       price: 50000,
       numCards: 3,
+      type: 'standard',
+      availableInStore: true,
       image: 'gold',
       possibleCards: silverPlayers.length || goldPlayers.length || premiumPlayers.length ? [
         ...silverPlayers.map(p => ({ player_id: p._id, weight: 20 })),
@@ -72,6 +78,8 @@ async function seedPacks() {
       name: 'Premium Pack',
       price: 150000,
       numCards: 5,
+      type: 'standard',
+      availableInStore: true,
       image: 'premium',
       possibleCards: goldPlayers.length || premiumPlayers.length ? [
         ...goldPlayers.map(p => ({ player_id: p._id, weight: 50 })),

@@ -4,7 +4,8 @@ const packSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
   numCards: { type: Number, required: true },
-  type: { type: String, default: 'store', enum: ['store', 'claim', 'draft', 'reward'] },
+  type: { type: String, default: 'standard' },
+  availableInStore: { type: Boolean, default: true },
   image: { type: String }, // 'gold', 'silver', 'premium', etc.
   possibleCards: [{
     player_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Player', required: true },

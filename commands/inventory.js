@@ -15,6 +15,7 @@ import path from 'path';
 import UserModel from '../schemas/userSchema.js';
 import PackModel from '../schemas/packSchema.js';
 import UserPlayerModel from '../schemas/userPlayerSchema.js';
+import UserPackModel from '../schemas/userPackSchema.js';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 const CARDS_LOCAL_PATH = 'c:/Users/Javi/Desktop/fut-web/frontend/public/player-cards';
@@ -62,8 +63,8 @@ function getPlayerImagePath(imageName) {
 // ─── Command definition ────────────────────────────────────────────────────────
 
 export const data = new SlashCommandBuilder()
-  .setName('packs')
-  .setDescription('Open the store to buy packs and pull new players for your club');
+  .setName('inventory')
+  .setDescription('Open packs from your inventory');
 
 // ─── Execute ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,6 @@ export async function execute(interaction) {
   const discordId = interaction.user.id;
 
   try {
-    // 1. Fetch user
     const webUser = await UserModel.findOne({ discordId });
     if (!webUser) {
       return interaction.reply({
@@ -80,67 +80,92 @@ export async function execute(interaction) {
       });
     }
 
-    // 2. Fetch all store packs from DB
-    const storePacks = await PackModel.find({ availableInStore: true }).populate('possibleCards.player_id').lean();
-    if (storePacks.length === 0) {
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xaa1c5f)
-            .setTitle('Pack Store')
-            .setDescription('The store is currently empty! No packs are available right now.')
-        ],
-        flags: MessageFlags.Ephemeral
+    async function showInventoryMenu(iToUpdate = null) {
+      const userPacks = await UserPackModel.find({ user_id: webUser._id, quantity: { $gt: 0 } }).populate('pack_id').lean();
+      
+      if (userPacks.length === 0) {
+        const emptyData = {
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xaa1c5f)
+              .setTitle('🎒 Pack Inventory')
+              .setDescription('You don\'t have any packs in your inventory!\nBuy some using `/store`.')
+          ],
+          components: []
+        };
+        
+        if (iToUpdate) {
+          return iToUpdate.update(emptyData);
+        } else {
+          return interaction.reply(Object.assign({}, emptyData, { flags: MessageFlags.Ephemeral }));
+        }
+      }
+
+      const invEmbed = new EmbedBuilder()
+        .setColor(0xaa1c5f)
+        .setTitle('🎒 Pack Inventory')
+        .setDescription(`Select a pack to open. You have **${userPacks.reduce((sum, up) => sum + up.quantity, 0)}** total packs.\n\n`)
+        .setThumbnail('https://imgur.com/ArczBYC.png');
+
+      userPacks.forEach(up => {
+        invEmbed.addFields({
+          name: `${up.pack_id.name} (x${up.quantity})`,
+          value: `Contains ${up.pack_id.numCards} ${up.pack_id.type === 'draft' ? 'choices' : 'cards'}.`
+        });
       });
+
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('select_inv_pack')
+        .setPlaceholder('Choose a pack to open...')
+        .addOptions(
+          userPacks.map(up => ({
+            label: up.pack_id.name,
+            description: `You have ${up.quantity} of these`,
+            value: up.pack_id._id.toString()
+          }))
+        );
+
+      const row = new ActionRowBuilder().addComponents(selectMenu);
+
+      if (iToUpdate) {
+        await iToUpdate.update({ embeds: [invEmbed], components: [row] });
+        return null;
+      } else {
+        await interaction.reply({ embeds: [invEmbed], components: [row] });
+        return await interaction.fetchReply();
+      }
     }
 
-    // 3. Build Store Embed
-    const storeEmbed = new EmbedBuilder()
-      .setColor(0xaa1c5f)
-      .setTitle('🛒 Pack Store')
-      .setDescription(`Welcome to the store! Select a pack to open.\nYour balance: **${webUser.currency.toLocaleString()} coins**\n\n`)
-      .setThumbnail('https://imgur.com/ArczBYC.png'); // Placeholder store icon
+    const message = await showInventoryMenu();
+    if (!message) return; // Means inventory was empty initially
 
-    storePacks.forEach(pack => {
-      storeEmbed.addFields({
-        name: `${pack.name} — 🪙 ${pack.price.toLocaleString()} coins`,
-        value: `Contains ${pack.numCards} random players.`
-      });
-    });
-
-    // 4. Build Select Menu
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId('select_pack')
-      .setPlaceholder('Choose a pack to open...')
-      .addOptions(
-        storePacks.map(pack => ({
-          label: pack.name,
-          description: `${pack.numCards} cards • ${pack.price.toLocaleString()} coins`,
-          value: pack._id.toString()
-        }))
-      );
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-    await interaction.reply({
-      embeds: [storeEmbed],
-      components: [row]
-    });
-    const message = await interaction.fetchReply();
-
-    // 5. Collector
     const collector = message.createMessageComponentCollector({
       filter: i => i.user.id === discordId,
-      time: COLLECTOR_TIMEOUT,
+      time: COLLECTOR_TIMEOUT * 5, // Allow more time since they might open multiple
     });
 
     collector.on('collect', async i => {
-      if (i.customId === 'select_pack') {
+      if (i.customId === 'back_to_inventory') {
+        await showInventoryMenu(i);
+        return;
+      }
+
+      if (i.customId === 'select_inv_pack') {
         const selectedPackId = i.values[0];
-        const selectedPack = storePacks.find(p => p._id.toString() === selectedPackId);
         
-        // Re-fetch user to get latest balance
-        const freshUser = await UserModel.findOne({ discordId });
+        const userPack = await UserPackModel.findOne({ user_id: webUser._id, pack_id: selectedPackId }).populate({
+          path: 'pack_id',
+          populate: { path: 'possibleCards.player_id' }
+        });
+
+        if (!userPack || userPack.quantity <= 0) {
+          return i.reply({
+            content: `You don't have any of this pack left!`,
+            flags: MessageFlags.Ephemeral
+          });
+        }
+
+        const selectedPack = userPack.pack_id;
 
         if (!selectedPack.possibleCards || selectedPack.possibleCards.length === 0) {
           return i.reply({
@@ -149,12 +174,9 @@ export async function execute(interaction) {
           });
         }
 
-        if (freshUser.currency < selectedPack.price) {
-          return i.reply({
-            content: `You don't have enough coins! You need **${(selectedPack.price - freshUser.currency).toLocaleString()}** more coins for the ${selectedPack.name}.`,
-            flags: MessageFlags.Ephemeral
-          });
-        }
+        // Deduct from inventory
+        userPack.quantity -= 1;
+        await userPack.save();
 
         // Processing overlay message
         await i.update({
@@ -166,10 +188,6 @@ export async function execute(interaction) {
           ],
           components: []
         });
-
-        // 6. Deduct balance and Open Pack Logic
-        freshUser.currency -= selectedPack.price;
-        await freshUser.save();
 
         const totalWeight = selectedPack.possibleCards.reduce((sum, c) => sum + c.weight, 0);
         const pulledPlayers = [];
@@ -256,41 +274,48 @@ export async function execute(interaction) {
             const selectedIdx = parseInt(btnInt.customId.split('_').pop());
             const chosenPlayer = pulledPlayers[selectedIdx];
 
-            // Save only the chosen player to DB
             await UserPlayerModel.create({
-              user_id: freshUser._id,
+              user_id: webUser._id,
               player_id: chosenPlayer._id,
               isTradeable: true
             });
 
-            // Update UI
             draftEmbed.setDescription(`✅ You chose **${chosenPlayer.name}** (${chosenPlayer.overall})! They have been added to your club.`);
             draftEmbed.setColor(0x22c55e);
             
-            // Disable buttons
-            draftRow.components.forEach(c => c.setDisabled(true));
+            const backRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId('back_to_inventory')
+                .setLabel('Back to Inventory')
+                .setStyle(ButtonStyle.Secondary)
+            );
 
-            await btnInt.update({ embeds: [draftEmbed], components: [draftRow] });
+            await btnInt.update({ embeds: [draftEmbed], components: [backRow] });
             draftCollector.stop('selected');
           });
 
           draftCollector.on('end', (_, reason) => {
             if (reason !== 'selected') {
-              draftEmbed.setDescription('❌ You took too long to choose. The pack expired and no players were added (Coins lost).');
+              draftEmbed.setDescription('❌ You took too long to choose. The pack expired and no players were added (Pack lost).');
               draftEmbed.setColor(0xff0000);
-              draftRow.components.forEach(c => c.setDisabled(true));
-              interaction.editReply({ embeds: [draftEmbed], components: [draftRow] }).catch(() => {});
+              
+              const backRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('back_to_inventory')
+                  .setLabel('Back to Inventory')
+                  .setStyle(ButtonStyle.Secondary)
+              );
+              
+              interaction.editReply({ embeds: [draftEmbed], components: [backRow] }).catch(() => {});
             }
           });
-
-          collector.stop('opened');
-          return;
+          
+          return; // Wait for back button handled by main collector
         }
 
         // --- STANDARD PACK LOGIC ---
-        // 7. Save pulled players to DB
         const userPlayersData = pulledPlayers.map(player => ({
-          user_id: freshUser._id,
+          user_id: webUser._id,
           player_id: player._id,
           isTradeable: true
         }));
@@ -331,25 +356,26 @@ export async function execute(interaction) {
           .setFooter({ text: 'Cards added to your club!' });
 
         resultEmbeds.push(summaryEmbed);
+        
+        const backRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('back_to_inventory')
+            .setLabel('Back to Inventory')
+            .setStyle(ButtonStyle.Secondary)
+        );
 
-        // Delay slightly for effect
         setTimeout(async () => {
           await interaction.editReply({
             embeds: resultEmbeds,
-            files: files
+            files: files,
+            components: [backRow]
           });
         }, 2000);
-
-        collector.stop('opened');
       }
     });
 
-    collector.on('end', (_, reason) => {
-      if (reason !== 'opened') {
-        const timeoutEmbed = EmbedBuilder.from(storeEmbed)
-          .setDescription('The store menu timed out. Run the command again to buy packs.');
-        interaction.editReply({ embeds: [timeoutEmbed], components: [] }).catch(() => {});
-      }
+    collector.on('end', () => {
+      interaction.editReply({ components: [] }).catch(() => {});
     });
 
   } catch (error) {

@@ -56,7 +56,7 @@ export async function execute(interaction) {
       const checkMark = isClaimed ? ' ✅' : (isCompleted ? ' 🎁 (¡Reclama abajo!)' : '');
 
       embed.addFields({
-        name: `🔹 **${obj.name.toUpperCase()}**`,
+        name: `◈ **${obj.name.toUpperCase()}**`,
         value: `${obj.description}\n${bar} \`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}\`${checkMark}\n*Recompensa: ${rewardText}*\n`
       });
 

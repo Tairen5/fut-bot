@@ -33,9 +33,9 @@ export async function execute(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6) // Blue Lock blue
-      .setTitle('📋 Egoist Missions')
-      .setDescription('Complete the evaluations below to earn rewards and improve your squad.')
-      .setThumbnail('https://imgur.com/ArczBYC.png'); // Placeholder, maybe use Blue Lock logo
+      .setTitle('MISIONES DIARIAS')
+      .setDescription('***SOLO LOS EGOÍSTAS EVOLUCIONAN.***\n\n**DESAFÍOS DEL EGO**\n━━━━━━━━━━━━━━━━━━━━━━');
+      // .setImage('URL_A_TU_BANNER') // Puedes añadir una imagen de banner aquí
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
@@ -46,16 +46,20 @@ export async function execute(interaction) {
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      let statusEmoji = '⏳';
-      if (isClaimed) statusEmoji = '✅';
-      else if (isCompleted) statusEmoji = '🎁';
+      let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()} coins` : `🎒 Pack ID: ${obj.rewardValue}`;
-      // Note: we can improve pack reward text later if we populate the pack name
+      // Simular barra de progreso con emojis
+      const totalBlocks = 6;
+      const progressRatio = Math.min(progress / obj.targetValue, 1);
+      const filledBlocks = Math.round(progressRatio * totalBlocks);
+      const emptyBlocks = totalBlocks - filledBlocks;
+      const bar = '🟦'.repeat(filledBlocks) + '⬛'.repeat(emptyBlocks);
+      
+      const checkMark = isClaimed ? ' ✅' : (isCompleted ? ' 🎁 (¡Reclama abajo!)' : '');
 
       embed.addFields({
-        name: `${statusEmoji} ${obj.name}`,
-        value: `${obj.description}\n**Progress:** [ ${Math.min(progress, obj.targetValue)} / ${obj.targetValue} ] • **Reward:** ${rewardText}`
+        name: `🔹 **${obj.name.toUpperCase()}**`,
+        value: `${obj.description}\n${bar} \`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}\`${checkMark}\n*Recompensa: ${rewardText}*\n`
       });
 
       if (isCompleted && !isClaimed && row.components.length < 5) {

@@ -31,12 +31,16 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
-    // Icons per mission type
-    const typeIcons = {
-      OPEN_PACKS: '◈',
-      SELL_PLAYERS: '◆',
-      BUY_PACKS: '◇'
-    };
+    // Icon based on progress level
+    function getProgressIcon(progress, target, isClaimed) {
+      if (isClaimed) return '☑'; // claimed
+      const ratio = progress / target;
+      if (ratio <= 0)    return '□'; // empty square - 0%
+      if (ratio < 0.33)  return '◇'; // empty diamond - low
+      if (ratio < 0.66)  return '◈'; // half diamond - mid
+      if (ratio < 1)     return '◆'; // full diamond - almost done
+      return '☒';                     // X square - complete, unclaimed
+    }
 
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6);
@@ -51,7 +55,7 @@ export async function execute(interaction) {
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      const icon = typeIcons[obj.type] ?? '◈';
+      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
       let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
       // Progress bar

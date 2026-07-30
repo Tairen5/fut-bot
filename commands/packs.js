@@ -66,8 +66,8 @@ export async function execute(interaction) {
       });
     }
 
-    // 2. Fetch all packs from store
-    const storePacks = await PackModel.find().populate('possibleCards.player_id').lean();
+    // 2. Fetch all store packs from DB
+    const storePacks = await PackModel.find({ type: 'store' }).populate('possibleCards.player_id').lean();
     if (storePacks.length === 0) {
       return interaction.reply({
         embeds: [

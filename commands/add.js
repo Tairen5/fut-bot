@@ -181,13 +181,13 @@ export async function execute(interaction) {
     const { embed, files } = buildPlayerEmbed(matchingPlayers[currentIndex], currentIndex, matchingPlayers.length);
     const row = buildActionRow(currentIndex, matchingPlayers.length);
 
-    const message = await interaction.reply({
+    await interaction.reply({
       embeds: [embed],
       components: [row],
       files,
-      withResponse: true,
       flags: MessageFlags.Ephemeral
     });
+    const message = await interaction.fetchReply();
 
     const collector = message.createMessageComponentCollector({
       filter: i => i.user.id === discordId,

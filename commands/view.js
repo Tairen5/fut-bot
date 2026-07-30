@@ -146,12 +146,12 @@ export async function execute(interaction) {
       ? [buildActionRow(currentIndex, matchingPlayers.length)]
       : [];
 
-    const message = await interaction.reply({
+    await interaction.reply({
       embeds: [embed],
       components,
-      files,
-      withResponse: true
+      files
     });
+    const message = await interaction.fetchReply();
 
     if (matchingPlayers.length <= 1) return; // No need for collector if only 1 match
 

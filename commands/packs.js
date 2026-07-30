@@ -122,11 +122,11 @@ export async function execute(interaction) {
 
     const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    const message = await interaction.reply({
+    await interaction.reply({
       embeds: [storeEmbed],
-      components: [row],
-      withResponse: true
+      components: [row]
     });
+    const message = await interaction.fetchReply();
 
     // 5. Collector
     const collector = message.createMessageComponentCollector({

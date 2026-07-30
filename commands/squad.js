@@ -109,11 +109,11 @@ export async function execute(interaction) {
     let currentPage = 0;
 
     // 4. Responder con la primera página
-    const message = await interaction.reply({
+    await interaction.reply({
       embeds: [buildEmbed(userPlayers, currentPage)],
-      components: totalPages > 1 ? [buildRow(currentPage, totalPages)] : [],
-      withResponse: true,
+      components: totalPages > 1 ? [buildRow(currentPage, totalPages)] : []
     });
+    const message = await interaction.fetchReply();
 
     if (totalPages <= 1) return; // sin paginación si cabe en una página
 

@@ -174,12 +174,12 @@ export async function execute(interaction) {
         .setStyle(ButtonStyle.Link)
     );
 
-    const message = await interaction.reply({
+    await interaction.reply({
       embeds: [embed],
       components: [row],
-      files,
-      withResponse: true
+      files
     });
+    const message = await interaction.fetchReply();
 
     // 9. Colector del botón de venta rápida
     const filter = i => i.customId === `quick_sell_${userPlayer._id}` && i.user.id === discordId;

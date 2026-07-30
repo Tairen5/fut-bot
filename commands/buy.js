@@ -161,12 +161,12 @@ export async function execute(interaction) {
   const { embed, files } = buildPlayerEmbed(matches[currentIndex], currentIndex, matches.length);
   const row = buildActionRow(currentIndex, matches.length);
 
-  const message = await interaction.reply({
+  await interaction.reply({
     embeds: [embed],
     components: [row],
-    files,
-    withResponse: true,
+    files
   });
+  const message = await interaction.fetchReply();
 
   // 4. Collector de botones (solo el usuario que ejecutó el comando)
   const collector = message.createMessageComponentCollector({

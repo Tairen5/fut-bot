@@ -146,7 +146,7 @@ export async function execute(interaction) {
 
     // Enviar primera página
     const initialPayload = await renderPage(currentPage);
-    const message = await interaction.editReply({ ...initialPayload, fetchReply: true });
+    const message = await interaction.editReply({ ...initialPayload, withResponse: true });
 
     // Colector de botones — escucha solo al usuario que ejecutó el comando
     const filter = i => i.user.id === interaction.user.id && ['players_first', 'players_prev', 'players_next', 'players_last'].includes(i.customId);

@@ -178,7 +178,7 @@ export async function execute(interaction) {
       embeds: [embed],
       components: [row],
       files,
-      fetchReply: true
+      withResponse: true
     });
 
     // 9. Colector del botón de venta rápida

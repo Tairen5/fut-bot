@@ -165,7 +165,7 @@ export async function execute(interaction) {
     embeds: [embed],
     components: [row],
     files,
-    fetchReply: true,
+    withResponse: true,
   });
 
   // 4. Collector de botones (solo el usuario que ejecutó el comando)

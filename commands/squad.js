@@ -112,7 +112,7 @@ export async function execute(interaction) {
     const message = await interaction.reply({
       embeds: [buildEmbed(userPlayers, currentPage)],
       components: totalPages > 1 ? [buildRow(currentPage, totalPages)] : [],
-      fetchReply: true,
+      withResponse: true,
     });
 
     if (totalPages <= 1) return; // sin paginación si cabe en una página

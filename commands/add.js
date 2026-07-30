@@ -185,7 +185,7 @@ export async function execute(interaction) {
       embeds: [embed],
       components: [row],
       files,
-      fetchReply: true,
+      withResponse: true,
       flags: MessageFlags.Ephemeral
     });
 

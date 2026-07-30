@@ -58,10 +58,8 @@ export async function execute(interaction) {
       const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
       let rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      // Progress bar
-      const totalBlocks = 8;
-      const filledBlocks = Math.round(Math.min(progress / obj.targetValue, 1) * totalBlocks);
-      const bar = '▰'.repeat(filledBlocks) + '▱'.repeat(totalBlocks - filledBlocks);
+      // Progress bar: 1 block per unit of target
+      const bar = '▰'.repeat(progress) + '▱'.repeat(Math.max(0, obj.targetValue - progress));
 
       const statusSuffix = isClaimed ? '  ✅' : (isCompleted ? '  🎁' : '');
       const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;

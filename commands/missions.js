@@ -94,15 +94,7 @@ export async function execute(interaction) {
       }
     }
 
-    // Insert blank spacers after every 2nd field to force 2-column layout without extra vertical space
-    const spacedFields = [];
-    for (let i = 0; i < fields.length; i++) {
-      spacedFields.push(fields[i]);
-      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
-        spacedFields.push({ name: '\u200b', value: '\u200b', inline: true });
-      }
-    }
-    embed.addFields(spacedFields);
+    embed.addFields(fields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

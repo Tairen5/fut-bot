@@ -35,10 +35,10 @@ export async function execute(interaction) {
     function getProgressIcon(progress, target, isClaimed) {
       if (isClaimed) return '☑'; // claimed
       const ratio = progress / target;
-      if (ratio <= 0)    return '□'; // empty square - 0%
-      if (ratio < 0.33)  return '◇'; // empty diamond - low
-      if (ratio < 0.66)  return '◈'; // half diamond - mid
-      if (ratio < 1)     return '◆'; // full diamond - almost done
+      if (ratio <= 0) return '□'; // empty square - 0%
+      if (ratio < 0.33) return '◇'; // empty diamond - low
+      if (ratio < 0.66) return '◈'; // half diamond - mid
+      if (ratio < 1) return '◆'; // full diamond - almost done
       return '☒';                     // X square - complete, unclaimed
     }
 
@@ -79,7 +79,7 @@ export async function execute(interaction) {
 
       fields.push({
         name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `${obj.description}\n----------------------\n${bar}  **${progressText}**\n${rewardText}\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
+        value: `${obj.description}\n▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔\n${bar}  **${progressText}**\n${rewardText}\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
         inline: true
       });
 
@@ -94,12 +94,12 @@ export async function execute(interaction) {
       }
     }
 
-    // Insert blank spacers after every 2nd field to force 2-column layout
+    // Insert blank spacers after every 2nd field to force 2-column layout without extra vertical space
     const spacedFields = [];
     for (let i = 0; i < fields.length; i++) {
       spacedFields.push(fields[i]);
       if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
-        spacedFields.push({ name: '\u200b', value: '\u200b', inline: false });
+        spacedFields.push({ name: '\u200b', value: '\u200b', inline: true });
       }
     }
     embed.addFields(spacedFields);
@@ -121,7 +121,7 @@ export async function execute(interaction) {
 
     collector.on('collect', async i => {
       const objId = i.customId.replace('claim_mission_', '');
-      
+
       const freshUser = await UserModel.findById(webUser._id);
       const uo = await UserObjectiveModel.findOne({ user_id: freshUser._id, objective_id: objId });
       const obj = activeObjectives.find(o => o._id.toString() === objId);
@@ -152,7 +152,7 @@ export async function execute(interaction) {
       await uo.save();
 
       await i.reply({ content: `🎉 You claimed the reward for **${obj.name}**!`, flags: MessageFlags.Ephemeral });
-      
+
       // Update buttons
       row.components.forEach(c => {
         if (c.data.custom_id === i.customId) {

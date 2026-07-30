@@ -1,0 +1,13 @@
+app = "fut-bot"
+primary_region = "mad"
+
+[build]
+
+[processes]
+  app = "node index.js"
+
+[env]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

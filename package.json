@@ -9,6 +9,7 @@
     "register": "node register.js"
   },
   "dependencies": {
+    "canvas": "^3.2.3",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "mongoose": "^9.8.0"

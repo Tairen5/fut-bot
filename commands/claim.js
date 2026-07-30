@@ -152,34 +152,16 @@ export async function execute(interaction) {
     else if (chosenPlayer.overall >= 80) embedColor = 0x4f8ef7;
 
     const embed = new EmbedBuilder()
+      .setColor(0xaa1c5f)
       .setTitle(`${chosenPlayer.name}${chosenPlayer.promo ? `  ·  ${chosenPlayer.promo}` : ''}`)
-      .addFields(
-        // Fila 1: Rating + Posición(es)
-        { name: 'Overall', value: `⭐ **${chosenPlayer.overall}**`, inline: true },
-        { name: 'Position', value: positionsStr || '—', inline: true },
-        { name: '\u200B', value: '\u200B', inline: true }, // espaciador
-
-        // Fila 2: Club + Nación + Liga
-        { name: 'Club', value: chosenPlayer.club?.name || '—', inline: true },
-        { name: 'Nation', value: chosenPlayer.nation?.name || '—', inline: true },
-        { name: 'League', value: chosenPlayer.league?.name || '—', inline: true },
-
-        // Fila 3: Stats — igual que en la web
-        { name: 'PAC', value: `\`${s.pac ?? '—'}\``, inline: true },
-        { name: 'SHO', value: `\`${s.sho ?? '—'}\``, inline: true },
-        { name: 'PAS', value: `\`${s.pas ?? '—'}\``, inline: true },
-        { name: 'DRI', value: `\`${s.dri ?? '—'}\``, inline: true },
-        { name: 'DEF', value: `\`${s.def ?? '—'}\``, inline: true },
-        { name: 'PHY', value: `\`${s.phy ?? '—'}\``, inline: true },
+      .setDescription(
+        `${positionsStr ? `**${positionsStr}**  ·  ` : ''}⭐ **${chosenPlayer.overall}**\n` +
+        `${chosenPlayer.club?.name || ''}${chosenPlayer.nation?.name ? `  ·  ${chosenPlayer.nation.name}` : ''}\n\n` +
+        `\`PAC ${s.pac ?? '—'}\`  \`SHO ${s.sho ?? '—'}\`  \`PAS ${s.pas ?? '—'}\`  \`DRI ${s.dri ?? '—'}\`  \`DEF ${s.def ?? '—'}\`  \`PHY ${s.phy ?? '—'}\`` +
+        (playStylesStr ? `\n\n${playStylesStr}` : '')
       )
-      .setColor(embedColor)
       .setImage(embedUrl)
-      .setFooter({ text: `Claimed on: ${new Date().toLocaleString('en-US')} • Added to your web collection` });
-
-    // Añadir play styles si existen (igual que en la web)
-    if (playStylesStr) {
-      embed.addFields({ name: 'Play Styles', value: playStylesStr, inline: false });
-    }
+      .setFooter({ text: `Claimed • ${new Date().toLocaleString('en-US')} • Added to your web collection` });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

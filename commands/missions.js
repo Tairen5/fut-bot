@@ -33,9 +33,7 @@ export async function execute(interaction) {
 
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6) // Blue Lock blue
-      .setTitle('MISIONES DIARIAS')
-      .setDescription('***SOLO LOS EGOÍSTAS EVOLUCIONAN.***\n\n**DESAFÍOS DEL EGO**\n━━━━━━━━━━━━━━━━━━━━━━');
-      // .setImage('URL_A_TU_BANNER') // Puedes añadir una imagen de banner aquí
+      .setTitle('MISIONES');
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;

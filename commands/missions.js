@@ -42,9 +42,22 @@ export async function execute(interaction) {
       return '☒';                     // X square - complete, unclaimed
     }
 
+    // Count overall completion for footer
+    let completedCount = 0;
+    for (const obj of activeObjectives) {
+      const uo = progressMap.get(obj._id.toString());
+      if (uo && uo.progress >= obj.targetValue) completedCount++;
+    }
+
+    const avatarUrl = interaction.user.displayAvatarURL({ size: 64 });
+
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6)
-      .setTitle('⚽ Misiones');
+      .setAuthor({
+        name: `${interaction.user.username} · Misiones Diarias`,
+        iconURL: avatarUrl
+      })
+      .setFooter({ text: `${completedCount} / ${activeObjectives.length} completadas · Pulsa el botón para reclamar` });
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
@@ -65,8 +78,8 @@ export async function execute(interaction) {
       const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
 
       fields.push({
-        name: `${icon} ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `*${obj.description}*\n${bar} \`${progressText}\`\n${rewardText}`,
+        name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
+        value: `${obj.description}\n\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\u2508\n${bar}  **${progressText}**\n${rewardText}`,
         inline: true
       });
 

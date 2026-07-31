@@ -31,40 +31,13 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
-    // Function to calculate visual length for monospace alignment
-    function visualPad(str, length) {
-      let visualLength = 0;
-      const segments = [...str];
-      for (const char of segments) {
-        const code = char.codePointAt(0);
-        // Emojis and most symbols render as 2 spaces wide in Discord codeblocks
-        if (code > 0xFFFF || (code >= 0x2600 && code <= 0x27BF)) {
-          visualLength += 2;
-        } else {
-          visualLength += 1;
-        }
-      }
-      const paddingNeeded = Math.max(0, length - visualLength);
-      return str + ' '.repeat(paddingNeeded);
-    }
-
-    const typeIcons = {
-      OPEN_PACKS: '📦',
-      SELL_PLAYERS: '💰',
-      BUY_PACKS: '🛒'
-    };
-
-    let completedCount = 0;
-    const items = [];
-
-    // Parse missions
+    // Parse missions into Discord embed fields
+    const fields = [];
     for (const obj of activeObjectives) {
       const uo = progressMap.get(obj._id.toString());
       const progress = uo ? uo.progress : 0;
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
-
-      if (isCompleted) completedCount++;
 
       const icon = typeIcons[obj.type] ?? '◈';
       const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
@@ -74,60 +47,42 @@ export async function execute(interaction) {
       const bar = '█'.repeat(filledBlocks) + '░'.repeat(barLen - filledBlocks);
 
       const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
+      const progressText = `${progress} / ${obj.targetValue}`;
 
-      items.push({
-        title: `${icon} ${obj.name.toUpperCase()}${statusSuffix}`,
-        reward: rewardText,
-        desc: obj.description,
-        progress: `${bar} ${progress}/${obj.targetValue}`,
+      fields.push({
+        name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
+        value: `${obj.description}\n\n${bar} **${progressText}**\n${rewardText}`,
+        inline: true,
         id: obj._id.toString(),
-        name: obj.name,
+        objName: obj.name,
         isClaimable: isCompleted && !isClaimed
       });
     }
 
-    // Build ASCII Grid
-    const colWidth = 28;
-    let grid = '┌' + '─'.repeat(colWidth) + '┬' + '─'.repeat(colWidth) + '┐\n';
-
-    for (let i = 0; i < items.length; i += 2) {
-      const left = items[i];
-      const right = items[i + 1]; // might be undefined
-
-      const formatLine = (valL, valR) => {
-        const pL = visualPad(`  ${valL}`, colWidth); // Added extra space padding on the left
-        const pR = right ? visualPad(`  ${valR}`, colWidth) : visualPad('', colWidth);
-        return `│${pL}│${pR}│\n`;
-      };
-
-      grid += formatLine(left.title, right ? right.title : '');
-      grid += formatLine('', ''); // Vertical spacing
-      grid += formatLine(left.reward, right ? right.reward : '');
-      grid += formatLine(left.desc, right ? right.desc : '');
-      grid += formatLine(left.progress, right ? right.progress : '');
-      grid += formatLine('', ''); // Vertical spacing at bottom of cell
-
-      if (i + 2 < items.length) {
-        grid += '├' + '─'.repeat(colWidth) + '┼' + '─'.repeat(colWidth) + '┤\n';
-      } else {
-        grid += '└' + '─'.repeat(colWidth) + '┴' + '─'.repeat(colWidth) + '┘';
+    // Add empty spacer fields to force 2-column layout (Discord allows max 3 inline per row)
+    const spacedFields = [];
+    for (let i = 0; i < fields.length; i++) {
+      spacedFields.push({ name: fields[i].name, value: fields[i].value, inline: true });
+      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
+        spacedFields.push({ name: '\u200b', value: '\u200b', inline: false });
       }
     }
 
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6)
-      .setDescription(`**⚽ Misiones Diarias**\n\n\`\`\`text\n${grid}\n\`\`\`\n🏆 Completa todas las misiones para ser el mejor egoísta.`);
+      .setDescription(`**⚽ Misiones Diarias**\n\n🏆 Completa todas las misiones para ser el mejor egoísta.\n\n`)
+      .addFields(spacedFields);
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
 
-    for (const item of items) {
-      if (item.isClaimable && row.components.length < 5) {
+    for (const field of fields) {
+      if (field.isClaimable && row.components.length < 5) {
         hasClaimable = true;
         row.addComponents(
           new ButtonBuilder()
-            .setCustomId(`claim_mission_${item.id}`)
-            .setLabel(`Reclamar ${item.name}`)
+            .setCustomId(`claim_mission_${field.id}`)
+            .setLabel(`Reclamar ${field.objName}`)
             .setStyle(ButtonStyle.Success)
         );
       }

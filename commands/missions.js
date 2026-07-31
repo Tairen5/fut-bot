@@ -94,7 +94,17 @@ export async function execute(interaction) {
       }
     }
 
-    embed.addFields(fields);
+    // Insert blank spacers with matched height after every 2nd field to force 2-column layout cleanly
+    const spacedFields = [];
+    for (let i = 0; i < fields.length; i++) {
+      spacedFields.push(fields[i]);
+      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
+        // 5 lines of zero-width space to match the height of the mission cards and prevent staggering
+        spacedFields.push({ name: '\u200b', value: '\u200b\n\u200b\n\u200b\n\u200b\n\u200b', inline: true });
+      }
+    }
+    
+    embed.addFields(spacedFields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

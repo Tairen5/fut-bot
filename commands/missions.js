@@ -62,25 +62,70 @@ export async function execute(interaction) {
     const row = new ActionRowBuilder();
     let hasClaimable = false;
 
-    // Generate Canvas 2x2 Grid
-    const columns = 2;
-    const rows = Math.ceil(activeObjectives.length / columns);
-    const cardWidth = 440;
-    const cardHeight = 190;
-    const gap = 24;
-    const padding = 36;
-    const footerH = 40;
-    
-    const canvasWidth = padding * 2 + (cardWidth * columns) + gap;
-    const canvasHeight = padding * 2 + (cardHeight * rows) + ((rows - 1) * gap) + footerH;
-    
-    const canvas = createCanvas(canvasWidth, canvasHeight);
+    // ─── Blue Lock Canvas ────────────────────────────────────────────────────────
+    const COLS = 2;
+    const numRows = Math.ceil(activeObjectives.length / COLS);
+    const CARD_W = 430;
+    const CARD_H = 240;
+    const GAP = 18;
+    const PAD = 28;
+    const HEADER_H = 72;
+    const FOOTER_H = 38;
+
+    const CW = PAD * 2 + CARD_W * COLS + GAP;
+    const CH = HEADER_H + PAD + numRows * CARD_H + (numRows - 1) * GAP + PAD + FOOTER_H;
+
+    const canvas = createCanvas(CW, CH);
     const ctx = canvas.getContext('2d');
 
-    // Background
-    ctx.fillStyle = '#111214'; // Discord dark theme
-    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    // ── BG ──────────────────────────────────────────────────────────────────────
+    ctx.fillStyle = '#07080f';
+    ctx.fillRect(0, 0, CW, CH);
 
+    // Subtle grid pattern
+    ctx.strokeStyle = 'rgba(26,90,255,0.07)';
+    ctx.lineWidth = 1;
+    for (let gx = 0; gx < CW; gx += 40) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,CH); ctx.stroke(); }
+    for (let gy = 0; gy < CH; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(CW,gy); ctx.stroke(); }
+
+    // ── HEADER ──────────────────────────────────────────────────────────────────
+    // Blue accent top bar
+    ctx.fillStyle = '#1a5aff';
+    ctx.fillRect(0, 0, CW, 4);
+
+    // "MISIONES" bold
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.fillText('MISIONES', PAD, 48);
+
+    // Accent tag "BLUE LOCK"
+    ctx.fillStyle = '#1a5aff';
+    ctx.beginPath();
+    ctx.roundRect(PAD + 152, 28, 100, 26, 4);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillText('BLUE LOCK', PAD + 162, 46);
+
+    // Username right
+    ctx.fillStyle = '#4c6ef5';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(interaction.user.username, CW - PAD, 48);
+    ctx.textAlign = 'left';
+
+    // Header divider
+    const grad = ctx.createLinearGradient(0, 0, CW, 0);
+    grad.addColorStop(0, '#1a5aff');
+    grad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, HEADER_H - 2);
+    ctx.lineTo(CW, HEADER_H - 2);
+    ctx.stroke();
+
+    // ── CARDS ───────────────────────────────────────────────────────────────────
     for (let i = 0; i < activeObjectives.length; i++) {
       const obj = activeObjectives[i];
       const uo = progressMap.get(obj._id.toString());
@@ -88,69 +133,112 @@ export async function execute(interaction) {
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      const col = i % columns;
-      const rowNum = Math.floor(i / columns);
-      
-      const x = padding + (col * (cardWidth + gap));
-      const y = padding + (rowNum * (cardHeight + gap));
+      const col = i % COLS;
+      const rowNum = Math.floor(i / COLS);
 
-      // Card Background
-      ctx.fillStyle = '#1e1f22'; // Lighter card background
+      const cx = PAD + col * (CARD_W + GAP);
+      const cy = HEADER_H + PAD + rowNum * (CARD_H + GAP);
+
+      // Card background
+      ctx.fillStyle = '#0d1220';
       ctx.beginPath();
-      ctx.roundRect(x, y, cardWidth, cardHeight, 10);
+      ctx.roundRect(cx, cy, CARD_W, CARD_H, 8);
       ctx.fill();
 
-      // Mission Title
-      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
-      const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(`${icon}  ${obj.name.toUpperCase()}${statusSuffix}`, x + 20, y + 35);
-
-      // Description
-      ctx.fillStyle = '#b5bac1';
-      ctx.font = '16px sans-serif';
-      ctx.fillText(obj.description, x + 20, y + 65);
-
-      // Separator Line
-      ctx.strokeStyle = '#313338';
-      ctx.lineWidth = 2;
+      // Card border
+      ctx.strokeStyle = '#1a2540';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x + 20, y + 85);
-      ctx.lineTo(x + cardWidth - 20, y + 85);
+      ctx.roundRect(cx, cy, CARD_W, CARD_H, 8);
       ctx.stroke();
 
-      // Progress Bar
-      const barX = x + 20;
-      const barY = y + 105;
-      const barWidth = 200;
-      const barHeight = 15;
-      
-      // Empty Bar
-      ctx.fillStyle = '#2b2d31';
-      ctx.roundRect(barX, barY, barWidth, barHeight, 5);
+      // Left accent bar colour: blue=active, gold=done, green=claimed, grey=empty
+      const accentColor = isClaimed ? '#22c55e' : isCompleted ? '#f5c518' : progress > 0 ? '#1a5aff' : '#1a2540';
+      ctx.fillStyle = accentColor;
+      ctx.beginPath();
+      ctx.roundRect(cx, cy + 10, 4, CARD_H - 20, 2);
       ctx.fill();
 
-      // Filled Bar
-      const fillRatio = Math.min(progress / obj.targetValue, 1);
-      if (fillRatio > 0) {
-        ctx.fillStyle = isClaimed ? '#23a559' : (isCompleted ? '#fcd53f' : '#5865F2');
+      // Progress icon (unicode, not emoji)
+      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
+      const statusTag = isClaimed ? ' [DONE]' : isCompleted ? ' [CLAIM]' : '';
+
+      // Mission name
+      ctx.fillStyle = '#e8ecf4';
+      ctx.font = 'bold 19px sans-serif';
+      ctx.fillText(`${icon}  ${obj.name.toUpperCase()}${statusTag}`, cx + 18, cy + 36);
+
+      // Description
+      ctx.fillStyle = '#5a6a8a';
+      ctx.font = '14px sans-serif';
+      ctx.fillText(obj.description, cx + 18, cy + 62);
+
+      // Thin separator
+      ctx.strokeStyle = '#1a2540';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 18, cy + 78);
+      ctx.lineTo(cx + CARD_W - 18, cy + 78);
+      ctx.stroke();
+
+      // Progress bar track
+      const barX = cx + 18;
+      const barY = cy + 100;
+      const barW = CARD_W - 36;
+      const barH = 10;
+
+      ctx.fillStyle = '#111b30';
+      ctx.beginPath();
+      ctx.roundRect(barX, barY, barW, barH, 5);
+      ctx.fill();
+
+      // Filled bar
+      const ratio = Math.min(progress / obj.targetValue, 1);
+      if (ratio > 0) {
+        const barGrad = ctx.createLinearGradient(barX, 0, barX + barW * ratio, 0);
+        if (isClaimed) { barGrad.addColorStop(0, '#16a34a'); barGrad.addColorStop(1, '#22c55e'); }
+        else if (isCompleted) { barGrad.addColorStop(0, '#d97706'); barGrad.addColorStop(1, '#f5c518'); }
+        else { barGrad.addColorStop(0, '#1a5aff'); barGrad.addColorStop(1, '#60a5fa'); }
+
+        ctx.fillStyle = barGrad;
         ctx.beginPath();
-        ctx.roundRect(barX, barY, barWidth * fillRatio, barHeight, 5);
+        ctx.roundRect(barX, barY, barW * ratio, barH, 5);
         ctx.fill();
       }
 
-      // Progress Text
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`, barX + barWidth + 15, barY + 13);
+      // Progress text
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px sans-serif';
+      ctx.fillText(`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`, barX, cy + 132);
 
-      // Reward Text
-      const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
-      ctx.fillStyle = '#fcd53f';
-      ctx.font = '18px sans-serif';
-      ctx.fillText(rewardText, x + 20, y + 172);
+      // Divider above reward
+      ctx.strokeStyle = '#1a2540';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 18, cy + 148);
+      ctx.lineTo(cx + CARD_W - 18, cy + 148);
+      ctx.stroke();
 
+      // Reward line
+      const rewardLabel = obj.rewardType === 'coins'
+        ? `+ ${obj.rewardValue.toLocaleString()} COINS`
+        : `+ 1 PACK`;
+      ctx.fillStyle = obj.rewardType === 'coins' ? '#f5c518' : '#a78bfa';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(rewardLabel, cx + 18, cy + 172);
+
+      // Claim tag
+      if (isCompleted && !isClaimed) {
+        ctx.fillStyle = '#f5c518';
+        ctx.beginPath();
+        ctx.roundRect(cx + CARD_W - 110, cy + 156, 95, 26, 4);
+        ctx.fill();
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('RECLAMAR', cx + CARD_W - 97, cy + 174);
+      }
+
+      // Buttons
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
         row.addComponents(
@@ -162,18 +250,19 @@ export async function execute(interaction) {
       }
     }
 
-    // Footer text inside canvas
-    const footerY = canvasHeight - 14;
-    ctx.fillStyle = '#72767d';
-    ctx.font = '15px sans-serif';
-    ctx.fillText(`${completedCount} / ${activeObjectives.length} completadas`, padding, footerY);
+    // ── FOOTER ──────────────────────────────────────────────────────────────────
+    const FY = CH - FOOTER_H / 2 + 6;
+    ctx.fillStyle = '#2a3555';
+    ctx.font = '13px sans-serif';
+    ctx.fillText(`${completedCount} / ${activeObjectives.length} misiones completadas`, PAD, FY);
+
     if (hasClaimable) {
-      ctx.fillStyle = '#23a559';
-      ctx.fillText('· Pulsa el botón para reclamar', padding + 185, footerY);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillText('  ·  Pulsa el botón de abajo para reclamar', PAD + 220, FY);
     }
 
+    // ── OUTPUT ──────────────────────────────────────────────────────────────────
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'missions.png' });
-
     embed.setImage('attachment://missions.png');
 
     const payload = { embeds: [embed], files: [attachment] };

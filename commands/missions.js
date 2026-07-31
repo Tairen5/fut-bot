@@ -31,6 +31,12 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
+    const typeIcons = {
+      OPEN_PACKS: '📦',
+      SELL_PLAYERS: '💰',
+      BUY_PACKS: '🛒'
+    };
+
     // Parse missions into Discord embed fields
     const fields = [];
     for (const obj of activeObjectives) {

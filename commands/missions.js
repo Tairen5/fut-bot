@@ -87,7 +87,7 @@ export async function execute(interaction) {
     }
 
     // Build ASCII Grid
-    const colWidth = 26;
+    const colWidth = 28;
     let grid = '┌' + '─'.repeat(colWidth) + '┬' + '─'.repeat(colWidth) + '┐\n';
 
     for (let i = 0; i < items.length; i += 2) {
@@ -95,15 +95,17 @@ export async function execute(interaction) {
       const right = items[i + 1]; // might be undefined
 
       const formatLine = (valL, valR) => {
-        const pL = visualPad(` ${valL}`, colWidth);
-        const pR = right ? visualPad(` ${valR}`, colWidth) : visualPad('', colWidth);
+        const pL = visualPad(`  ${valL}`, colWidth); // Added extra space padding on the left
+        const pR = right ? visualPad(`  ${valR}`, colWidth) : visualPad('', colWidth);
         return `│${pL}│${pR}│\n`;
       };
 
       grid += formatLine(left.title, right ? right.title : '');
+      grid += formatLine('', ''); // Vertical spacing
       grid += formatLine(left.reward, right ? right.reward : '');
       grid += formatLine(left.desc, right ? right.desc : '');
       grid += formatLine(left.progress, right ? right.progress : '');
+      grid += formatLine('', ''); // Vertical spacing at bottom of cell
 
       if (i + 2 < items.length) {
         grid += '├' + '─'.repeat(colWidth) + '┼' + '─'.repeat(colWidth) + '┤\n';
@@ -112,13 +114,9 @@ export async function execute(interaction) {
       }
     }
 
-    const overallPct = Math.round((completedCount / activeObjectives.length) * 100) || 0;
-    const overallFilled = Math.round((completedCount / activeObjectives.length) * 10) || 0;
-    const overallBar = '█'.repeat(overallFilled) + '░'.repeat(10 - overallFilled);
-
     const embed = new EmbedBuilder()
       .setColor(0x0e50e6)
-      .setDescription(`**⚽ Misiones Diarias**\n\n**Progreso Total**\n\`${overallBar} ${overallPct}% (${completedCount}/${activeObjectives.length})\`\n\n\`\`\`text\n${grid}\n\`\`\`\n🏆 Completa todas las misiones para ser el mejor egoísta.`);
+      .setDescription(`**⚽ Misiones Diarias**\n\n\`\`\`text\n${grid}\n\`\`\`\n🏆 Completa todas las misiones para ser el mejor egoísta.`);
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;

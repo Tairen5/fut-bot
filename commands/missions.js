@@ -31,70 +31,109 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
-    // Icon based on progress level
-    function getProgressIcon(progress, target, isClaimed) {
-      if (isClaimed) return '☑'; // claimed
-      const ratio = progress / target;
-      if (ratio <= 0) return '□'; // empty square - 0%
-      if (ratio < 0.33) return '◇'; // empty diamond - low
-      if (ratio < 0.66) return '◈'; // half diamond - mid
-      if (ratio < 1) return '◆'; // full diamond - almost done
-      return '☒';                     // X square - complete, unclaimed
+    // Function to calculate visual length for monospace alignment
+    function visualPad(str, length) {
+      let visualLength = 0;
+      const segments = [...str];
+      for (const char of segments) {
+        const code = char.codePointAt(0);
+        // Emojis and most symbols render as 2 spaces wide in Discord codeblocks
+        if (code > 0xFFFF || (code >= 0x2600 && code <= 0x27BF)) {
+          visualLength += 2;
+        } else {
+          visualLength += 1;
+        }
+      }
+      const paddingNeeded = Math.max(0, length - visualLength);
+      return str + ' '.repeat(paddingNeeded);
     }
 
-    // Count overall completion for footer
+    const typeIcons = {
+      OPEN_PACKS: '📦',
+      SELL_PLAYERS: '💰',
+      BUY_PACKS: '🛒'
+    };
+
     let completedCount = 0;
-    for (const obj of activeObjectives) {
-      const uo = progressMap.get(obj._id.toString());
-      if (uo && uo.progress >= obj.targetValue) completedCount++;
-    }
+    const items = [];
 
-    const avatarUrl = interaction.user.displayAvatarURL({ size: 64 });
-
-    const embed = new EmbedBuilder()
-      .setColor(0x0e50e6)
-      .setAuthor({
-        name: `${interaction.user.username} · Misiones Diarias`,
-        iconURL: avatarUrl
-      })
-      .setFooter({ text: `${completedCount} / ${activeObjectives.length} completadas · Pulsa el botón para reclamar` });
-
-    const row = new ActionRowBuilder();
-    let hasClaimable = false;
-    const fields = [];
-
+    // Parse missions
     for (const obj of activeObjectives) {
       const uo = progressMap.get(obj._id.toString());
       const progress = uo ? uo.progress : 0;
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
+      if (isCompleted) completedCount++;
+
+      const icon = typeIcons[obj.type] ?? '◈';
       const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      // Progress bar: 1 block per unit
-      const bar = '▰'.repeat(progress) + '▱'.repeat(Math.max(0, obj.targetValue - progress));
-      const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;
+      const barLen = 10;
+      const filledBlocks = Math.round(Math.min(progress / obj.targetValue, 1) * barLen);
+      const bar = '█'.repeat(filledBlocks) + '░'.repeat(barLen - filledBlocks);
+
       const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
 
-      fields.push({
-        name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `${obj.description}\n▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔\n${bar}  **${progressText}**\n${rewardText}\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
-        inline: true
+      items.push({
+        title: `${icon} ${obj.name.toUpperCase()}${statusSuffix}`,
+        reward: rewardText,
+        desc: obj.description,
+        progress: `${bar} ${progress}/${obj.targetValue}`,
+        id: obj._id.toString(),
+        name: obj.name,
+        isClaimable: isCompleted && !isClaimed
       });
+    }
 
-      if (isCompleted && !isClaimed && row.components.length < 5) {
+    // Build ASCII Grid
+    const colWidth = 26;
+    let grid = '┌' + '─'.repeat(colWidth) + '┬' + '─'.repeat(colWidth) + '┐\n';
+
+    for (let i = 0; i < items.length; i += 2) {
+      const left = items[i];
+      const right = items[i + 1]; // might be undefined
+
+      const formatLine = (valL, valR) => {
+        const pL = visualPad(` ${valL}`, colWidth);
+        const pR = right ? visualPad(` ${valR}`, colWidth) : visualPad('', colWidth);
+        return `│${pL}│${pR}│\n`;
+      };
+
+      grid += formatLine(left.title, right ? right.title : '');
+      grid += formatLine(left.reward, right ? right.reward : '');
+      grid += formatLine(left.desc, right ? right.desc : '');
+      grid += formatLine(left.progress, right ? right.progress : '');
+
+      if (i + 2 < items.length) {
+        grid += '├' + '─'.repeat(colWidth) + '┼' + '─'.repeat(colWidth) + '┤\n';
+      } else {
+        grid += '└' + '─'.repeat(colWidth) + '┴' + '─'.repeat(colWidth) + '┘';
+      }
+    }
+
+    const overallPct = Math.round((completedCount / activeObjectives.length) * 100) || 0;
+    const overallFilled = Math.round((completedCount / activeObjectives.length) * 10) || 0;
+    const overallBar = '█'.repeat(overallFilled) + '░'.repeat(10 - overallFilled);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x0e50e6)
+      .setDescription(`**⚽ Misiones Diarias**\n\n**Progreso Total**\n\`${overallBar} ${overallPct}% (${completedCount}/${activeObjectives.length})\`\n\n\`\`\`text\n${grid}\n\`\`\`\n🏆 Completa todas las misiones para ser el mejor egoísta.`);
+
+    const row = new ActionRowBuilder();
+    let hasClaimable = false;
+
+    for (const item of items) {
+      if (item.isClaimable && row.components.length < 5) {
         hasClaimable = true;
         row.addComponents(
           new ButtonBuilder()
-            .setCustomId(`claim_mission_${obj._id}`)
-            .setLabel(`Claim ${obj.name}`)
+            .setCustomId(`claim_mission_${item.id}`)
+            .setLabel(`Reclamar ${item.name}`)
             .setStyle(ButtonStyle.Success)
         );
       }
     }
-
-    embed.addFields(fields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

@@ -57,8 +57,7 @@ export async function execute(interaction) {
       .setAuthor({
         name: `${interaction.user.username} · Misiones Diarias`,
         iconURL: avatarUrl
-      })
-      .setFooter({ text: `${completedCount} / ${activeObjectives.length} completadas · Pulsa el botón para reclamar` });
+      });
 
     const row = new ActionRowBuilder();
     let hasClaimable = false;
@@ -66,13 +65,14 @@ export async function execute(interaction) {
     // Generate Canvas 2x2 Grid
     const columns = 2;
     const rows = Math.ceil(activeObjectives.length / columns);
-    const cardWidth = 380;
-    const cardHeight = 160;
-    const gap = 20;
-    const padding = 30;
+    const cardWidth = 440;
+    const cardHeight = 190;
+    const gap = 24;
+    const padding = 36;
+    const footerH = 40;
     
     const canvasWidth = padding * 2 + (cardWidth * columns) + gap;
-    const canvasHeight = padding * 2 + (cardHeight * rows) + (rows > 1 ? gap : 0);
+    const canvasHeight = padding * 2 + (cardHeight * rows) + ((rows - 1) * gap) + footerH;
     
     const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
@@ -147,9 +147,9 @@ export async function execute(interaction) {
 
       // Reward Text
       const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
-      ctx.fillStyle = '#fcd53f'; // Gold color for reward
+      ctx.fillStyle = '#fcd53f';
       ctx.font = '18px sans-serif';
-      ctx.fillText(rewardText, x + 20, y + 145);
+      ctx.fillText(rewardText, x + 20, y + 172);
 
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
@@ -160,6 +160,16 @@ export async function execute(interaction) {
             .setStyle(ButtonStyle.Success)
         );
       }
+    }
+
+    // Footer text inside canvas
+    const footerY = canvasHeight - 14;
+    ctx.fillStyle = '#72767d';
+    ctx.font = '15px sans-serif';
+    ctx.fillText(`${completedCount} / ${activeObjectives.length} completadas`, padding, footerY);
+    if (hasClaimable) {
+      ctx.fillStyle = '#23a559';
+      ctx.fillText('· Pulsa el botón para reclamar', padding + 185, footerY);
     }
 
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'missions.png' });

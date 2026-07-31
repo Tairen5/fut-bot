@@ -62,70 +62,147 @@ export async function execute(interaction) {
     const row = new ActionRowBuilder();
     let hasClaimable = false;
 
-    // ─── Blue Lock Canvas ────────────────────────────────────────────────────────
-    const COLS = 2;
-    const numRows = Math.ceil(activeObjectives.length / COLS);
-    const CARD_W = 430;
-    const CARD_H = 240;
-    const GAP = 18;
-    const PAD = 28;
-    const HEADER_H = 72;
-    const FOOTER_H = 38;
-
-    const CW = PAD * 2 + CARD_W * COLS + GAP;
-    const CH = HEADER_H + PAD + numRows * CARD_H + (numRows - 1) * GAP + PAD + FOOTER_H;
+    // ─── Blue Lock Project Canvas ─────────────────────────────────────────────
+    const CW = 1020;
+    const HEADER_H = 128;
+    const PROGRESS_H = 80;
+    const PAD = 16;
+    const CARD_GAP = 12;
+    const numRows = Math.ceil(activeObjectives.length / 2);
+    const CARD_H = 188;
+    const FOOTER_H = 54;
+    const CARD_AREA_Y = HEADER_H + PROGRESS_H + 8;
+    const CARD_W = (CW - PAD * 2 - CARD_GAP) / 2;
+    const CH = CARD_AREA_Y + numRows * CARD_H + (numRows - 1) * CARD_GAP + 8 + FOOTER_H;
 
     const canvas = createCanvas(CW, CH);
     const ctx = canvas.getContext('2d');
 
-    // ── BG ──────────────────────────────────────────────────────────────────────
-    ctx.fillStyle = '#07080f';
+    // helper: draw pentagon
+    function pentagon(x, y, r) {
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) {
+        const a = (k * 2 * Math.PI / 5) - Math.PI / 2;
+        k === 0 ? ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a))
+                : ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
+      }
+      ctx.closePath();
+    }
+
+    // ── BACKGROUND ──────────────────────────────────────────────────────────────
+    const bgG = ctx.createLinearGradient(0, 0, CW, CH);
+    bgG.addColorStop(0, '#040918');
+    bgG.addColorStop(1, '#08102a');
+    ctx.fillStyle = bgG;
     ctx.fillRect(0, 0, CW, CH);
 
-    // Subtle grid pattern
-    ctx.strokeStyle = 'rgba(26,90,255,0.07)';
-    ctx.lineWidth = 1;
-    for (let gx = 0; gx < CW; gx += 40) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,CH); ctx.stroke(); }
-    for (let gy = 0; gy < CH; gy += 40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(CW,gy); ctx.stroke(); }
-
     // ── HEADER ──────────────────────────────────────────────────────────────────
-    // Blue accent top bar
-    ctx.fillStyle = '#1a5aff';
+    // Diagonal streaks
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, CW, HEADER_H);
+    ctx.clip();
+    ctx.globalAlpha = 0.06;
+    ctx.strokeStyle = '#3366ff';
+    ctx.lineWidth = 28;
+    for (let sx = -200; sx < CW + 400; sx += 56) {
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + 180, HEADER_H); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Top blue bar
+    ctx.fillStyle = '#1a4fff';
     ctx.fillRect(0, 0, CW, 4);
 
-    // "MISIONES" bold
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 30px sans-serif';
-    ctx.fillText('MISIONES', PAD, 48);
+    // Pentagon logo
+    pentagon(54, 62, 40);
+    ctx.fillStyle = '#1a4fff'; ctx.fill();
+    pentagon(54, 62, 22);
+    ctx.fillStyle = '#040918'; ctx.fill();
+    pentagon(54, 62, 11);
+    ctx.fillStyle = '#1a4fff'; ctx.fill();
 
-    // Accent tag "BLUE LOCK"
-    ctx.fillStyle = '#1a5aff';
-    ctx.beginPath();
-    ctx.roundRect(PAD + 152, 28, 100, 26, 4);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 13px sans-serif';
-    ctx.fillText('BLUE LOCK', PAD + 162, 46);
+    // "BLUE LOCK PROJECT" small label
+    ctx.fillStyle = '#4a8aff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('BLUE LOCK PROJECT', 106, 38);
 
-    // Username right
-    ctx.fillStyle = '#4c6ef5';
-    ctx.font = '14px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(interaction.user.username, CW - PAD, 48);
+    // "MISIONES" large italic
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'italic bold 64px sans-serif';
+    ctx.fillText('MISIONES', 104, 102);
+
+    // Japanese subtitle
+    ctx.fillStyle = '#3a6aff';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('\u30df\u30c3\u30b7\u30e7\u30f3\u3092\u30af\u30ea\u30a2\u3057\u3066\u5831\u9149\u3092\u7372\u5f97\u3057\u3088\u3046', PAD, HEADER_H - 10);
+
+    // Header bottom divider (gradient)
+    const hDivG = ctx.createLinearGradient(0, 0, CW, 0);
+    hDivG.addColorStop(0, '#1a4fff'); hDivG.addColorStop(0.6, '#1a3a7a'); hDivG.addColorStop(1, 'transparent');
+    ctx.strokeStyle = hDivG; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, HEADER_H); ctx.lineTo(CW, HEADER_H); ctx.stroke();
+
+    // ── PROGRESS TRACKER ────────────────────────────────────────────────────────
+    const PY = HEADER_H;
+
+    ctx.fillStyle = '#0b1530';
+    ctx.fillRect(0, PY, CW * 0.56, PROGRESS_H);
+    ctx.fillStyle = '#09112a';
+    ctx.fillRect(CW * 0.56, PY, CW * 0.44, PROGRESS_H);
+
+    ctx.strokeStyle = '#162040'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, PY + PROGRESS_H); ctx.lineTo(CW, PY + PROGRESS_H); ctx.stroke();
+
+    // "PROGRESO DIARIO" label
+    ctx.fillStyle = '#4a7aff'; ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('PROGRESO DIARIO', PAD + 8, PY + 20);
+
+    // "1/4  COMPLETADAS"
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 36px sans-serif';
+    ctx.fillText(`${completedCount}`, PAD + 8, PY + 65);
+
+    const cntW = ctx.measureText(`${completedCount}`).width;
+    ctx.fillStyle = '#3a6aff'; ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`/${activeObjectives.length}`, PAD + 8 + cntW + 2, PY + 65);
+
+    ctx.fillStyle = '#6a80aa'; ctx.font = 'bold 11px sans-serif';
+    ctx.fillText('COMPLETADAS', PAD + 8 + cntW + 2 + ctx.measureText(`/${activeObjectives.length}`).width + 8, PY + 65);
+
+    // Numbered step track
+    const TRX0 = 210, TRX1 = CW * 0.52, TRY = PY + PROGRESS_H / 2;
+    ctx.strokeStyle = '#1a3060'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(TRX0, TRY); ctx.lineTo(TRX1, TRY); ctx.stroke();
+
+    if (completedCount > 0) {
+      const fillEnd = TRX0 + (Math.min(completedCount, activeObjectives.length) / activeObjectives.length) * (TRX1 - TRX0);
+      ctx.strokeStyle = '#1a4fff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(TRX0, TRY); ctx.lineTo(fillEnd, TRY); ctx.stroke();
+    }
+
+    for (let s = 0; s < activeObjectives.length; s++) {
+      const sx = TRX0 + (s / Math.max(activeObjectives.length - 1, 1)) * (TRX1 - TRX0);
+      const done = s < completedCount, active = s === completedCount;
+      ctx.beginPath(); ctx.arc(sx, TRY, active ? 10 : 7, 0, Math.PI * 2);
+      ctx.fillStyle = done ? '#1a4fff' : active ? '#ffffff' : '#162040'; ctx.fill();
+      if (active) { ctx.strokeStyle = '#1a4fff'; ctx.lineWidth = 2; ctx.stroke(); }
+      ctx.fillStyle = done ? '#ffffff' : active ? '#1a4fff' : '#3a5070';
+      ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(s + 1, sx, TRY + 4); ctx.textAlign = 'left';
+    }
+
+    // Right: RECOMPENSA FINAL
+    ctx.fillStyle = '#4a7aff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('RECOMPENSA FINAL', CW - PAD - 8, PY + 22);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'italic bold 22px sans-serif';
+    ctx.fillText('MEGA PACK', CW - PAD - 8, PY + 58);
     ctx.textAlign = 'left';
 
-    // Header divider
-    const grad = ctx.createLinearGradient(0, 0, CW, 0);
-    grad.addColorStop(0, '#1a5aff');
-    grad.addColorStop(1, 'transparent');
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, HEADER_H - 2);
-    ctx.lineTo(CW, HEADER_H - 2);
-    ctx.stroke();
+    // Vertical divider in progress bar
+    ctx.strokeStyle = '#1a3060'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(Math.round(CW * 0.56), PY); ctx.lineTo(Math.round(CW * 0.56), PY + PROGRESS_H); ctx.stroke();
 
-    // ── CARDS ───────────────────────────────────────────────────────────────────
+    // ── MISSION CARDS ───────────────────────────────────────────────────────────
     for (let i = 0; i < activeObjectives.length; i++) {
       const obj = activeObjectives[i];
       const uo = progressMap.get(obj._id.toString());
@@ -133,112 +210,107 @@ export async function execute(interaction) {
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      const col = i % COLS;
-      const rowNum = Math.floor(i / COLS);
+      const col = i % 2;
+      const rowNum = Math.floor(i / 2);
+      const cx = PAD + col * (CARD_W + CARD_GAP);
+      const cy = CARD_AREA_Y + rowNum * (CARD_H + CARD_GAP);
 
-      const cx = PAD + col * (CARD_W + GAP);
-      const cy = HEADER_H + PAD + rowNum * (CARD_H + GAP);
+      const accent = isClaimed ? '#22c55e' : isCompleted ? '#22c55e' : '#1a4fff';
+      const borderCol = isClaimed ? '#22c55e' : isCompleted ? '#22c55e' : '#1a3a7a';
 
-      // Card background
-      ctx.fillStyle = '#0d1220';
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, CARD_W, CARD_H, 8);
-      ctx.fill();
+      // Card bg
+      ctx.fillStyle = '#0a1326';
+      ctx.beginPath(); ctx.roundRect(cx, cy, CARD_W, CARD_H, 4); ctx.fill();
 
       // Card border
-      ctx.strokeStyle = '#1a2540';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy, CARD_W, CARD_H, 8);
-      ctx.stroke();
+      ctx.strokeStyle = borderCol; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(cx, cy, CARD_W, CARD_H, 4); ctx.stroke();
 
-      // Left accent bar colour: blue=active, gold=done, green=claimed, grey=empty
-      const accentColor = isClaimed ? '#22c55e' : isCompleted ? '#f5c518' : progress > 0 ? '#1a5aff' : '#1a2540';
-      ctx.fillStyle = accentColor;
-      ctx.beginPath();
-      ctx.roundRect(cx, cy + 10, 4, CARD_H - 20, 2);
-      ctx.fill();
+      // ── Left number panel ──
+      const LNUM_W = 90;
+      ctx.fillStyle = '#060e20';
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(cx, cy, LNUM_W, CARD_H, [4, 0, 0, 4]); ctx.clip();
+      ctx.fillRect(cx, cy, LNUM_W, CARD_H);
+      // diagonal stripes
+      ctx.globalAlpha = 0.12; ctx.strokeStyle = accent; ctx.lineWidth = 12;
+      for (let ds = cx - 40; ds < cx + LNUM_W + 40; ds += 20) {
+        ctx.beginPath(); ctx.moveTo(ds, cy); ctx.lineTo(ds + 50, cy + CARD_H); ctx.stroke();
+      }
+      ctx.restore();
 
-      // Progress icon (unicode, not emoji)
-      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
-      const statusTag = isClaimed ? ' [DONE]' : isCompleted ? ' [CLAIM]' : '';
+      // Divider between left and right
+      ctx.strokeStyle = borderCol; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx + LNUM_W, cy); ctx.lineTo(cx + LNUM_W, cy + CARD_H); ctx.stroke();
+
+      // Mission number
+      ctx.fillStyle = accent; ctx.font = 'italic bold 42px sans-serif';
+      ctx.fillText(String(i + 1).padStart(2, '0'), cx + 8, cy + 56);
+
+      // "MISION" label
+      ctx.fillStyle = accent; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('MISI\u00d3N', cx + 8, cy + 74);
+
+      // ── Right content ──
+      const RX = cx + LNUM_W + 14;
+      const RW = CARD_W - LNUM_W - 20;
 
       // Mission name
-      ctx.fillStyle = '#e8ecf4';
-      ctx.font = 'bold 19px sans-serif';
-      ctx.fillText(`${icon}  ${obj.name.toUpperCase()}${statusTag}`, cx + 18, cy + 36);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'italic bold 18px sans-serif';
+      ctx.fillText(obj.name.toUpperCase(), RX, cy + 26);
+
+      // COMPLETADA tag
+      if (isCompleted) {
+        ctx.fillStyle = '#22c55e'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText('\u2713 COMPLETADA', cx + CARD_W - 10, cy + 26);
+        ctx.textAlign = 'left';
+      }
 
       // Description
-      ctx.fillStyle = '#5a6a8a';
-      ctx.font = '14px sans-serif';
-      ctx.fillText(obj.description, cx + 18, cy + 62);
+      ctx.fillStyle = '#7a90b0'; ctx.font = '13px sans-serif';
+      ctx.fillText(obj.description, RX, cy + 48);
 
-      // Thin separator
-      ctx.strokeStyle = '#1a2540';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx + 18, cy + 78);
-      ctx.lineTo(cx + CARD_W - 18, cy + 78);
-      ctx.stroke();
+      // Progress bar
+      const BX = RX, BY = cy + 62, BW = RW, BH = 8;
+      ctx.fillStyle = '#112040';
+      ctx.beginPath(); ctx.roundRect(BX, BY, BW, BH, 4); ctx.fill();
 
-      // Progress bar track
-      const barX = cx + 18;
-      const barY = cy + 100;
-      const barW = CARD_W - 36;
-      const barH = 10;
-
-      ctx.fillStyle = '#111b30';
-      ctx.beginPath();
-      ctx.roundRect(barX, barY, barW, barH, 5);
-      ctx.fill();
-
-      // Filled bar
       const ratio = Math.min(progress / obj.targetValue, 1);
       if (ratio > 0) {
-        const barGrad = ctx.createLinearGradient(barX, 0, barX + barW * ratio, 0);
-        if (isClaimed) { barGrad.addColorStop(0, '#16a34a'); barGrad.addColorStop(1, '#22c55e'); }
-        else if (isCompleted) { barGrad.addColorStop(0, '#d97706'); barGrad.addColorStop(1, '#f5c518'); }
-        else { barGrad.addColorStop(0, '#1a5aff'); barGrad.addColorStop(1, '#60a5fa'); }
-
-        ctx.fillStyle = barGrad;
-        ctx.beginPath();
-        ctx.roundRect(barX, barY, barW * ratio, barH, 5);
-        ctx.fill();
+        const bG = ctx.createLinearGradient(BX, 0, BX + BW, 0);
+        if (isCompleted || isClaimed) { bG.addColorStop(0, '#16a34a'); bG.addColorStop(1, '#22c55e'); }
+        else { bG.addColorStop(0, '#1a4fff'); bG.addColorStop(1, '#5a9aff'); }
+        ctx.fillStyle = bG;
+        ctx.beginPath(); ctx.roundRect(BX, BY, BW * ratio, BH, 4); ctx.fill();
       }
 
-      // Progress text
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '13px sans-serif';
-      ctx.fillText(`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`, barX, cy + 132);
+      // Progress fraction
+      ctx.fillStyle = '#c8d8f0'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(`${Math.min(progress, obj.targetValue)}/${obj.targetValue}`, cx + CARD_W - 10, cy + 90);
+      ctx.textAlign = 'left';
 
-      // Divider above reward
-      ctx.strokeStyle = '#1a2540';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx + 18, cy + 148);
-      ctx.lineTo(cx + CARD_W - 18, cy + 148);
-      ctx.stroke();
+      // "RECOMPENSA" label
+      ctx.fillStyle = accent; ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('RECOMPENSA', RX, cy + 112);
 
-      // Reward line
+      // Reward icon circle
+      const iconColor = obj.rewardType === 'coins' ? '#b8860b' : '#7a4fff';
+      ctx.fillStyle = iconColor;
+      ctx.beginPath(); ctx.arc(RX + 11, cy + 136, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(RX + 11, cy + 136, 11, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(obj.rewardType === 'coins' ? 'UT' : '+', RX + 11, cy + 140);
+      ctx.textAlign = 'left';
+
+      // Reward text
       const rewardLabel = obj.rewardType === 'coins'
-        ? `+ ${obj.rewardValue.toLocaleString()} COINS`
-        : `+ 1 PACK`;
-      ctx.fillStyle = obj.rewardType === 'coins' ? '#f5c518' : '#a78bfa';
-      ctx.font = 'bold 15px sans-serif';
-      ctx.fillText(rewardLabel, cx + 18, cy + 172);
+        ? `${obj.rewardValue.toLocaleString()} COINS`
+        : `1 PREMIUM PACK`;
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(rewardLabel, RX + 28, cy + 142);
 
-      // Claim tag
-      if (isCompleted && !isClaimed) {
-        ctx.fillStyle = '#f5c518';
-        ctx.beginPath();
-        ctx.roundRect(cx + CARD_W - 110, cy + 156, 95, 26, 4);
-        ctx.fill();
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('RECLAMAR', cx + CARD_W - 97, cy + 174);
-      }
-
-      // Buttons
+      // Buttons for claiming
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
         row.addComponents(
@@ -251,15 +323,38 @@ export async function execute(interaction) {
     }
 
     // ── FOOTER ──────────────────────────────────────────────────────────────────
-    const FY = CH - FOOTER_H / 2 + 6;
-    ctx.fillStyle = '#2a3555';
-    ctx.font = '13px sans-serif';
-    ctx.fillText(`${completedCount} / ${activeObjectives.length} misiones completadas`, PAD, FY);
+    const FY = CH - FOOTER_H;
+    ctx.fillStyle = '#050c1c';
+    ctx.fillRect(0, FY, CW, FOOTER_H);
+    ctx.strokeStyle = '#162040'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, FY); ctx.lineTo(CW, FY); ctx.stroke();
 
-    if (hasClaimable) {
-      ctx.fillStyle = '#22c55e';
-      ctx.fillText('  ·  Pulsa el botón de abajo para reclamar', PAD + 220, FY);
-    }
+    // Clock icon
+    ctx.strokeStyle = '#3a6aff'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(PAD + 14, FY + FOOTER_H / 2, 12, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(PAD + 14, FY + FOOTER_H / 2); ctx.lineTo(PAD + 14, FY + FOOTER_H / 2 - 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD + 14, FY + FOOTER_H / 2); ctx.lineTo(PAD + 14 + 5, FY + FOOTER_H / 2 + 3); ctx.stroke();
+
+    // Reset label + time
+    ctx.fillStyle = '#3a6aff'; ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('REINICIO DIARIO', PAD + 32, FY + 17);
+    const now2 = new Date();
+    const mdn = new Date(now2); mdn.setHours(24, 0, 0, 0);
+    const msL = mdn - now2;
+    const hL = Math.floor(msL / 3600000), mL = Math.floor((msL % 3600000) / 60000);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 16px sans-serif';
+    ctx.fillText(`${hL}h ${mL}m`, PAD + 32, FY + 38);
+
+    // Center text
+    ctx.fillStyle = '#3a5070'; ctx.font = '12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Las misiones se reinician todos los d\u00edas.', CW / 2, FY + FOOTER_H / 2 + 5);
+    ctx.textAlign = 'left';
+
+    // Right tag
+    ctx.fillStyle = '#3a6aff'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('// BLUE LOCK PROJECT', CW - PAD, FY + FOOTER_H / 2 + 5);
+    ctx.textAlign = 'left';
 
     // ── OUTPUT ──────────────────────────────────────────────────────────────────
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'missions.png' });

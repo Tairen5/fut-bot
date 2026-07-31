@@ -1,4 +1,5 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, AttachmentBuilder } from 'discord.js';
+import { createCanvas } from 'canvas';
 
 import UserModel from '../schemas/userSchema.js';
 import ObjectiveModel from '../schemas/objectiveSchema.js';
@@ -62,25 +63,93 @@ export async function execute(interaction) {
     const row = new ActionRowBuilder();
     let hasClaimable = false;
 
-    for (const obj of activeObjectives) {
+    // Generate Canvas 2x2 Grid
+    const columns = 2;
+    const rows = Math.ceil(activeObjectives.length / columns);
+    const cardWidth = 380;
+    const cardHeight = 160;
+    const gap = 20;
+    const padding = 30;
+    
+    const canvasWidth = padding * 2 + (cardWidth * columns) + gap;
+    const canvasHeight = padding * 2 + (cardHeight * rows) + (rows > 1 ? gap : 0);
+    
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#111214'; // Discord dark theme
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    for (let i = 0; i < activeObjectives.length; i++) {
+      const obj = activeObjectives[i];
       const uo = progressMap.get(obj._id.toString());
       const progress = uo ? uo.progress : 0;
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
+      const col = i % columns;
+      const rowNum = Math.floor(i / columns);
+      
+      const x = padding + (col * (cardWidth + gap));
+      const y = padding + (rowNum * (cardHeight + gap));
+
+      // Card Background
+      ctx.fillStyle = '#1e1f22'; // Lighter card background
+      ctx.beginPath();
+      ctx.roundRect(x, y, cardWidth, cardHeight, 10);
+      ctx.fill();
+
+      // Mission Title
       const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
-      const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
-
-      // Progress bar: 1 block per unit
-      const bar = '▰'.repeat(progress) + '▱'.repeat(Math.max(0, obj.targetValue - progress));
-      const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;
       const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(`${icon}  ${obj.name.toUpperCase()}${statusSuffix}`, x + 20, y + 35);
 
-      embed.addFields({
-        name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `${obj.description}\n----------------------\n${bar}  **${progressText}**\n${rewardText}\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
-        inline: false
-      });
+      // Description
+      ctx.fillStyle = '#b5bac1';
+      ctx.font = '16px sans-serif';
+      ctx.fillText(obj.description, x + 20, y + 65);
+
+      // Separator Line
+      ctx.strokeStyle = '#313338';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + 20, y + 85);
+      ctx.lineTo(x + cardWidth - 20, y + 85);
+      ctx.stroke();
+
+      // Progress Bar
+      const barX = x + 20;
+      const barY = y + 105;
+      const barWidth = 200;
+      const barHeight = 15;
+      
+      // Empty Bar
+      ctx.fillStyle = '#2b2d31';
+      ctx.roundRect(barX, barY, barWidth, barHeight, 5);
+      ctx.fill();
+
+      // Filled Bar
+      const fillRatio = Math.min(progress / obj.targetValue, 1);
+      if (fillRatio > 0) {
+        ctx.fillStyle = isClaimed ? '#23a559' : (isCompleted ? '#fcd53f' : '#5865F2');
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, barWidth * fillRatio, barHeight, 5);
+        ctx.fill();
+      }
+
+      // Progress Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`, barX + barWidth + 15, barY + 13);
+
+      // Reward Text
+      const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
+      ctx.fillStyle = '#fcd53f'; // Gold color for reward
+      ctx.font = '18px sans-serif';
+      ctx.fillText(rewardText, x + 20, y + 145);
 
       if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
@@ -93,7 +162,11 @@ export async function execute(interaction) {
       }
     }
 
-    const payload = { embeds: [embed] };
+    const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'missions.png' });
+
+    embed.setImage('attachment://missions.png');
+
+    const payload = { embeds: [embed], files: [attachment] };
     if (hasClaimable) {
       payload.components = [row];
     }

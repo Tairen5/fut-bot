@@ -31,68 +31,79 @@ export async function execute(interaction) {
       progressMap.set(uo.objective_id.toString(), uo);
     });
 
-    const typeIcons = {
-      OPEN_PACKS: '📦',
-      SELL_PLAYERS: '💰',
-      BUY_PACKS: '🛒'
-    };
+    // Icon based on progress level
+    function getProgressIcon(progress, target, isClaimed) {
+      if (isClaimed) return '☑'; // claimed
+      const ratio = progress / target;
+      if (ratio <= 0) return '□'; // empty square - 0%
+      if (ratio < 0.33) return '◇'; // empty diamond - low
+      if (ratio < 0.66) return '◈'; // half diamond - mid
+      if (ratio < 1) return '◆'; // full diamond - almost done
+      return '☒';                     // X square - complete, unclaimed
+    }
 
-    // Parse missions into Discord embed fields
+    // Count overall completion for footer
+    let completedCount = 0;
+    for (const obj of activeObjectives) {
+      const uo = progressMap.get(obj._id.toString());
+      if (uo && uo.progress >= obj.targetValue) completedCount++;
+    }
+
+    const avatarUrl = interaction.user.displayAvatarURL({ size: 64 });
+
+    const embed = new EmbedBuilder()
+      .setColor(0x0e50e6)
+      .setAuthor({
+        name: `${interaction.user.username} · Misiones Diarias`,
+        iconURL: avatarUrl
+      })
+      .setFooter({ text: `${completedCount} / ${activeObjectives.length} completadas · Pulsa el botón para reclamar` });
+
+    const row = new ActionRowBuilder();
+    let hasClaimable = false;
     const fields = [];
+
     for (const obj of activeObjectives) {
       const uo = progressMap.get(obj._id.toString());
       const progress = uo ? uo.progress : 0;
       const isCompleted = progress >= obj.targetValue;
       const isClaimed = uo ? uo.isClaimed : false;
 
-      const icon = typeIcons[obj.type] ?? '◈';
+      const icon = getProgressIcon(progress, obj.targetValue, isClaimed);
       const rewardText = obj.rewardType === 'coins' ? `🪙 ${obj.rewardValue.toLocaleString()}` : `🎒 Pack`;
 
-      const barLen = 10;
-      const filledBlocks = Math.round(Math.min(progress / obj.targetValue, 1) * barLen);
-      const bar = '█'.repeat(filledBlocks) + '░'.repeat(barLen - filledBlocks);
-
+      // Progress bar: 1 block per unit
+      const bar = '▰'.repeat(progress) + '▱'.repeat(Math.max(0, obj.targetValue - progress));
+      const progressText = `${Math.min(progress, obj.targetValue)} / ${obj.targetValue}`;
       const statusSuffix = isClaimed ? ' ✅' : (isCompleted ? ' 🎁' : '');
-      const progressText = `${progress} / ${obj.targetValue}`;
 
       fields.push({
         name: `${icon}  ${obj.name.toUpperCase()}${statusSuffix}`,
-        value: `${obj.description}\n\n${bar} **${progressText}**\n${rewardText}`,
-        inline: true,
-        id: obj._id.toString(),
-        objName: obj.name,
-        isClaimable: isCompleted && !isClaimed
+        value: `${obj.description}\n▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔\n${bar}  **${progressText}**\n${rewardText}\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬`,
+        inline: true
       });
-    }
 
-    // Add empty spacer fields to force 2-column layout (Discord allows max 3 inline per row)
-    const spacedFields = [];
-    for (let i = 0; i < fields.length; i++) {
-      spacedFields.push({ name: fields[i].name, value: fields[i].value, inline: true });
-      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
-        spacedFields.push({ name: '\u200b', value: '\u200b', inline: false });
-      }
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(0x0e50e6)
-      .setDescription(`**⚽ Misiones Diarias**\n\n🏆 Completa todas las misiones para ser el mejor egoísta.\n\n`)
-      .addFields(spacedFields);
-
-    const row = new ActionRowBuilder();
-    let hasClaimable = false;
-
-    for (const field of fields) {
-      if (field.isClaimable && row.components.length < 5) {
+      if (isCompleted && !isClaimed && row.components.length < 5) {
         hasClaimable = true;
         row.addComponents(
           new ButtonBuilder()
-            .setCustomId(`claim_mission_${field.id}`)
-            .setLabel(`Reclamar ${field.objName}`)
+            .setCustomId(`claim_mission_${obj._id}`)
+            .setLabel(`Claim ${obj.name}`)
             .setStyle(ButtonStyle.Success)
         );
       }
     }
+
+    // Insert blank spacers after every 2nd field to force 2-column layout
+    const spacedFields = [];
+    for (let i = 0; i < fields.length; i++) {
+      spacedFields.push(fields[i]);
+      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
+        // Use an inline spacer to take up the 3rd column and force a wrap without vertical gaps
+        spacedFields.push({ name: '\u200b', value: '\u200b', inline: true });
+      }
+    }
+    embed.addFields(spacedFields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {

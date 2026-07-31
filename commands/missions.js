@@ -94,16 +94,7 @@ export async function execute(interaction) {
       }
     }
 
-    // Insert blank spacers after every 2nd field to force 2-column layout
-    const spacedFields = [];
-    for (let i = 0; i < fields.length; i++) {
-      spacedFields.push(fields[i]);
-      if ((i + 1) % 2 === 0 && i + 1 < fields.length) {
-        // Use an inline spacer to take up the 3rd column and force a wrap without vertical gaps
-        spacedFields.push({ name: '\u200b', value: '\u200b', inline: true });
-      }
-    }
-    embed.addFields(spacedFields);
+    embed.addFields(fields);
 
     const payload = { embeds: [embed] };
     if (hasClaimable) {
